@@ -1,0 +1,32 @@
+[
+{
+  "id": "T001",
+  "title": "Campus Wi-Fi is down",
+  "category": "Network",
+  "urgency": "high",
+  "affected_users": 15,
+  "priority": "critical",
+  "status": "open",
+  "assigned_to": "None"
+},
+{
+  "id": "T002",
+  "title": "Printer not working in Library",
+  "category": "Hardware",
+  "urgency": "medium",
+  "affected_users": 5,
+  "priority": "high",
+  "status": "in progress",
+  "assigned_to": "Technician A"
+},
+{
+  "id": "T003",
+  "title": "Software installation request for Lab PCs",
+  "category": "Software",
+  "urgency": "low",
+  "affected_users": 20,
+  "priority": "medium",
+  "status": "open",
+  "assigned_to": "None"
+}
+]
