@@ -25,9 +25,44 @@ class TestWorkflow(unittest.TestCase):
         change_status(tickets, "T001", "resolved")
         self.assertEqual(tickets[0]["status"], "resolved")
 
-    # TODO: resolved ticket can't change without reopen
-    # TODO: reopen works on resolved, fails on open
-    # TODO: unknown ticket ID raises ValueError
+    def test_open_cannot_jump_straight_to_resolved(self):
+        tickets = [make_ticket("T001", assigned_to="Ada")]
+        with self.assertRaises(ValueError):
+            change_status(tickets, "T001", "resolved")
+        self.assertEqual(tickets[0]["status"], "open")
+
+    def test_resolved_ticket_cannot_change_without_reopen(self):
+        tickets = [make_ticket("T001", status="resolved", assigned_to="Ada")]
+        with self.assertRaises(ValueError):
+            change_status(tickets, "T001", "in_progress")
+        self.assertEqual(tickets[0]["status"], "resolved")
+
+    def test_reopen_resolved_ticket_sets_open(self):
+        tickets = [make_ticket("T001", status="resolved", assigned_to="Ada")]
+        reopen_ticket(tickets, "T001")
+        self.assertEqual(tickets[0]["status"], "open")
+
+    def test_reopen_rejected_for_open_ticket(self):
+        tickets = [make_ticket("T001")]
+        with self.assertRaises(ValueError):
+            reopen_ticket(tickets, "T001")
+        self.assertEqual(tickets[0]["status"], "open")
+
+    def test_unknown_ticket_id_is_rejected(self):
+        tickets = [make_ticket("T001", assigned_to="Ada")]
+        with self.assertRaises(ValueError):
+            change_status(tickets, "T999", "in_progress")
+
+    def test_invalid_status_is_rejected(self):
+        tickets = [make_ticket("T001", assigned_to="Ada")]
+        with self.assertRaises(ValueError):
+            change_status(tickets, "T001", "finished")
+        self.assertEqual(tickets[0]["status"], "open")
+
+    def test_status_input_is_normalised(self):
+        tickets = [make_ticket("T001", assigned_to="Ada")]
+        change_status(tickets, " t001 ", "In Progress")
+        self.assertEqual(tickets[0]["status"], "in_progress")
 
 
 class TestWorkQueue(unittest.TestCase):
@@ -42,8 +77,24 @@ class TestWorkQueue(unittest.TestCase):
         ids = [t["id"] for t in get_work_queue(tickets)]
         self.assertEqual(ids, ["T003", "T002", "T010", "T001"])
 
-    # TODO: resolved tickets excluded
-    # TODO: empty list -> []
+    def test_resolved_tickets_excluded_from_queue(self):
+        tickets = [
+            make_ticket("T001", priority="critical", status="resolved"),
+            make_ticket("T002", priority="low"),
+        ]
+        ids = [t["id"] for t in get_work_queue(tickets)]
+        self.assertEqual(ids, ["T002"])
+
+    def test_empty_ticket_list_gives_empty_queue(self):
+        self.assertEqual(get_work_queue([]), [])
+
+    def test_queue_does_not_reorder_original_list(self):
+        tickets = [
+            make_ticket("T001", priority="low"),
+            make_ticket("T002", priority="critical"),
+        ]
+        get_work_queue(tickets)
+        self.assertEqual([t["id"] for t in tickets], ["T001", "T002"])
 
 
 if __name__ == "__main__":
