@@ -1,5 +1,5 @@
 
-from . import read_ticket_file, save_ticket, update_ticket
+from . import read_ticket_file, update_ticket
 
 def assign_ticket():
     ticket_id = input("enter ticket ID: ")
@@ -12,6 +12,10 @@ def assign_ticket():
     for ticket in tickets:
         if ticket ["id"] == ticket_id:
             ticket ["assigned_to"] = staff_name.strip()
-            return update_ticket(ticket)
+            result = update_ticket(ticket)
+            if result == "update success":
+                return print(f"\nTicket {ticket["id"]} has been assigned to {ticket["assigned_to"]}.")
+            else:
+                return print("\nfailed to assign ticket.")
 
     
