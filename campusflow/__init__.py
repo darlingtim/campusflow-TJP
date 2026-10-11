@@ -3,7 +3,7 @@ import os
 from typing import Any, Dict
 
 
-def save_ticket_report(ticket_data: Dict[str, Any]) -> str:
+def save_ticket(ticket_data: Dict[str, Any]) -> str:
     """Append a ticket to the existing JSON report."""
     ticket_file = "./tickets.json"
     os.makedirs(os.path.dirname(ticket_file) or ".", exist_ok=True)
@@ -13,6 +13,24 @@ def save_ticket_report(ticket_data: Dict[str, Any]) -> str:
         existing_data.append(ticket_data)
     with open(ticket_file, "w") as f:
         json.dump(existing_data, f, indent=4)
+
+def update_ticket(ticket_data: Dict[str, Any]) -> str:
+    """Gets  a ticket by its id and saves the updated version ."""
+    ticket_file = "./tickets.json"
+    os.makedirs(os.path.dirname(ticket_file) or ".", exist_ok=True)
+
+    with open(ticket_file, "r") as f:
+        existing_data = json.load(f)
+
+    #Update the existing ticket if its ID matches 
+    for index, ticket in enumerate(existing_data): 
+        if ticket["id"] == ticket_data["id"]: 
+            existing_data[index] = ticket_data 
+            break
+    with open(ticket_file, "w") as f:
+            json.dump(existing_data, f, indent=4)
+            return "update success"
+    return "update failed"
 
 
 def read_ticket_file():
@@ -27,6 +45,6 @@ def read_ticket_file():
 
 from . report import generate_total_ticket_report
 from . validate_ticket import validate_ticket, TicketValidationError
-from . tickets import raise_ticket
+from . create_tickets import raise_ticket
 from . assign import assign_ticket
 from . list_view import list_tickets, get_ticket

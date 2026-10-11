@@ -1,4 +1,4 @@
-from . import read_ticket_file, save_ticket_report, validate_ticket, TicketValidationError
+from . import read_ticket_file, save_ticket, validate_ticket, TicketValidationError
 
 class Ticket:
     def __init__(self, ticket_id, title, category, urgency, affected_users):
@@ -61,7 +61,7 @@ def raise_ticket():
         raise TicketValidationError("\n".join(errors))
         
     try:
-        save_ticket_report(ticket.to_dict())
+        save_ticket(ticket.to_dict())
         return print(f"\nTicket {ticket.id} has been raised and submitted successfully!")
 
     except Exception as e:
