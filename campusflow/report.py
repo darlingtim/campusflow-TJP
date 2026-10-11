@@ -40,6 +40,7 @@ def generate_total_ticket_report(ticket_data=None):
         f"==============================\n"
         f"Tickets By Priority:\n"
         f"------------------------------\n"
+        f"Critical priority:  {len([ticket for ticket in ticket_data if ticket['priority'] == 'critical'])}\n"
         f"High priority:  {len([ticket for ticket in ticket_data if ticket['priority'] == 'high'])}\n"
         f"Medium priority:  {len([ticket for ticket in ticket_data if ticket['priority'] == 'medium'])}\n"
         f"Low priority:  {len([ticket for ticket in ticket_data if ticket['priority'] == 'low'])}\n"
