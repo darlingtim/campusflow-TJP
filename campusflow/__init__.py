@@ -27,3 +27,4 @@ def read_ticket_file():
 
 from . report import generate_total_ticket_report
 from . validate_ticket import validate_ticket, TicketValidationError
+from . tickets import raise_ticket

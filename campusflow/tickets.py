@@ -13,13 +13,13 @@ class Ticket:
 
     def calculate_priority(self):
         """Determine the priority of the ticket based on urgency and affected users."""
-        if self.urgency == "high" and self.affected_users >= 10:
+        if self.urgency == "high" and int(self.affected_users) >= 10:
             return "critical"
 
-        elif self.urgency == "high" or self.affected_users >= 10:
+        elif self.urgency == "high" or int(self.affected_users) >= 10:
             return "high"
 
-        elif self.urgency == "medium" or self.affected_users >= 3:
+        elif self.urgency == "medium" or int(self.affected_users) >= 3:
             return "medium"
 
         else:
@@ -62,10 +62,10 @@ def raise_ticket():
         
     try:
         save_ticket_report(ticket.to_dict())
-        return f"\nTicket {ticket.id} has been raised and submitted successfully!"
+        return print(f"\nTicket {ticket.id} has been raised and submitted successfully!")
 
     except Exception as e:
-        return f"Error saving ticket: {e}"
+        return print(f"Error saving ticket: {e}")
 
 
 
