@@ -1,5 +1,5 @@
 import unittest
-from campusflow.workflow import change_status, reopen_ticket, get_work_queue
+from campusflow.workflow import apply_status_change, reopen_ticket, get_work_queue
 
 
 def make_ticket(id, priority="low", status="open", assigned_to=None):
@@ -16,25 +16,25 @@ class TestWorkflow(unittest.TestCase):
     def test_unassigned_ticket_cannot_start(self):
         tickets = [make_ticket("T001")]
         with self.assertRaises(ValueError):
-            change_status(tickets, "T001", "in_progress")
+            apply_status_change(tickets, "T001", "in_progress")
         self.assertEqual(tickets[0]["status"], "open")  # proves nothing changed
 
     def test_assigned_ticket_full_lifecycle(self):
         tickets = [make_ticket("T001", assigned_to="Ada")]
-        change_status(tickets, "T001", "in_progress")
-        change_status(tickets, "T001", "resolved")
+        apply_status_change(tickets, "T001", "in_progress")
+        apply_status_change(tickets, "T001", "resolved")
         self.assertEqual(tickets[0]["status"], "resolved")
 
     def test_open_cannot_jump_straight_to_resolved(self):
         tickets = [make_ticket("T001", assigned_to="Ada")]
         with self.assertRaises(ValueError):
-            change_status(tickets, "T001", "resolved")
+            apply_status_change(tickets, "T001", "resolved")
         self.assertEqual(tickets[0]["status"], "open")
 
     def test_resolved_ticket_cannot_change_without_reopen(self):
         tickets = [make_ticket("T001", status="resolved", assigned_to="Ada")]
         with self.assertRaises(ValueError):
-            change_status(tickets, "T001", "in_progress")
+            apply_status_change(tickets, "T001", "in_progress")
         self.assertEqual(tickets[0]["status"], "resolved")
 
     def test_reopen_resolved_ticket_sets_open(self):
@@ -51,18 +51,18 @@ class TestWorkflow(unittest.TestCase):
     def test_unknown_ticket_id_is_rejected(self):
         tickets = [make_ticket("T001", assigned_to="Ada")]
         with self.assertRaises(ValueError):
-            change_status(tickets, "T999", "in_progress")
+            apply_status_change(tickets, "T999", "in_progress")
 
     def test_invalid_status_is_rejected(self):
         tickets = [make_ticket("T001", assigned_to="Ada")]
         with self.assertRaises(ValueError):
-            change_status(tickets, "T001", "finished")
+            apply_status_change(tickets, "T001", "finished")
         self.assertEqual(tickets[0]["status"], "open")
 
     def test_status_input_is_normalised(self):
         tickets = [make_ticket("T001", assigned_to="Ada")]
-        change_status(tickets, " t001 ", "In Progress")
-        self.assertEqual(tickets[0]["status"], "in_progress")
+        apply_status_change(tickets, " t001 ", "In Progress")
+        self.assertEqual(tickets[0]["status"], "in progress")
 
 
 class TestWorkQueue(unittest.TestCase):
