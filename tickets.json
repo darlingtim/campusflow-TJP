@@ -58,5 +58,15 @@
         "priority": "medium",
         "status": "open",
         "assigned_to": null
+    },
+    {
+        "id": "T002",
+        "title": "Printer not working in Library",
+        "category": "Hardware",
+        "urgency": "medium",
+        "affected_users": 5,
+        "priority": "high",
+        "status": "in progress",
+        "assigned_to": "Sean"
     }
 ]

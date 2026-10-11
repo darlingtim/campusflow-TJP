@@ -1,5 +1,5 @@
 """Interactive command-line interface for campus support tickets."""
-from campusflow import raise_ticket, generate_total_ticket_report
+from campusflow import raise_ticket, generate_total_ticket_report, assign_ticket, list_tickets, get_ticket
 def main():
 	while True:
 		print("\nWelcome to Campusflow-TJP Support")
@@ -11,11 +11,11 @@ def main():
 		if choice == "1":
 			raise_ticket()
 		elif choice == "2":
-			print("not implemented yet")
+			list_tickets()
 		elif choice == "3":
-			print("not implemented yet")
+			get_ticket()
 		elif choice == "4":
-			print("not implemented yet")
+			assign_ticket()
 		elif choice == "5":
 			print("not implemented yet")
 		elif choice == "6":
