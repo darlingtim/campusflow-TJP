@@ -12,8 +12,19 @@ class Ticket:
         self.assigned_to = None
 
     def calculate_priority(self):
-        # We will implement your criteria later
-        return None
+        """Determine the priority of the ticket based on urgency and affected users."""
+        if self.urgency == "high" and self.affected_users >= 10:
+            return "critical"
+
+        elif self.urgency == "high" or self.affected_users >= 10:
+            return "high"
+
+        elif self.urgency == "medium" or self.affected_users >= 3:
+            return "medium"
+
+        else:
+            return "low"
+
 
     def to_dict(self):
         return {
