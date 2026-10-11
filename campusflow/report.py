@@ -1,5 +1,6 @@
 import json
 import os
+from . import read_ticket_file as read_ticket
 
 
 def _build_ticket_report(ticket_data):
@@ -20,8 +21,7 @@ def generate_total_ticket_report(ticket_data=None):
     if ticket_data is not None:
         return _build_ticket_report(ticket_data)
 
-    with open("./tickets.json", "r") as f:
-        ticket_data = json.load(f)
+    ticket_data = read_ticket()
 
     if not ticket_data:
         print("No tickets found in the report.")
@@ -46,17 +46,6 @@ def generate_total_ticket_report(ticket_data=None):
         f"==============================\n"
     )
 
-
-def save_ticket_report(ticket_data):
-    """Append a ticket to the existing JSON report."""
-    output_file = "./tickets.json"
-    os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
-
-    with open(output_file, "r") as f:
-        existing_data = json.load(f)
-        existing_data.append(ticket_data)
-    with open(output_file, "w") as f:
-        json.dump(existing_data, f, indent=4)
 
 
 if __name__ == "__main__":
