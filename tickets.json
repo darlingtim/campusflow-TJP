@@ -7,7 +7,7 @@
         "affected_users": 15,
         "priority": "critical",
         "status": "open",
-        "assigned_to": "None"
+        "assigned_to": "joy"
     },
     {
         "id": "T002",
@@ -17,7 +17,7 @@
         "affected_users": 5,
         "priority": "high",
         "status": "in progress",
-        "assigned_to": "Sean"
+        "assigned_to": "ubuntu"
     },
     {
         "id": "T003",
