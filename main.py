@@ -19,8 +19,6 @@ def main():
 		elif choice == "5":
 			print("not implemented yet")
 		elif choice == "6":
-			print("not implemented yet")
-		elif choice == "6":
 			generate_total_ticket_report()
 		elif choice == "7":
 			print("You have exited the application.")
