@@ -27,10 +27,12 @@ def update_ticket(ticket_data: Dict[str, Any]) -> str:
         if ticket["id"] == ticket_data["id"]: 
             existing_data[index] = ticket_data 
             break
+    else:
+        return "update failed"
+
     with open(ticket_file, "w") as f:
             json.dump(existing_data, f, indent=4)
             return "update success"
-    return "update failed"
 
 
 def read_ticket_file():

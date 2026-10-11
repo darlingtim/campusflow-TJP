@@ -13,13 +13,18 @@ class Ticket:
 
     def calculate_priority(self):
         """Determine the priority of the ticket based on urgency and affected users."""
-        if self.urgency == "high" and int(self.affected_users) >= 10:
+        try:
+            affected_users = int(self.affected_users)
+        except (TypeError, ValueError):
+            return "low"
+
+        if self.urgency == "high" and affected_users >= 10:
             return "critical"
 
-        elif self.urgency == "high" or int(self.affected_users) >= 10:
+        elif self.urgency == "high" or affected_users >= 10:
             return "high"
 
-        elif self.urgency == "medium" or int(self.affected_users) >= 3:
+        elif self.urgency == "medium" or affected_users >= 3:
             return "medium"
 
         else:
