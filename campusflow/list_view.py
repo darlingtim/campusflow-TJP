@@ -14,5 +14,4 @@ def get_ticket():
         if ticket["id"] == ticket_id:
             print("\n")
             return pprint(ticket)
-        else:
-         raise ValueError(f"Ticket {ticket_id} was not found.")
+    raise ValueError(f"Ticket {ticket_id} was not found.")

@@ -15,7 +15,8 @@ def assign_ticket():
             result = update_ticket(ticket)
             if result == "update success":
                 return print(f"\nTicket {ticket["id"]} has been assigned to {ticket["assigned_to"]}.")
-            else:
-                return print("\nfailed to assign ticket.")
+            print("\nfailed to assign ticket.")
+            return None
 
-    
+    print(f"\nTicket {ticket_id} was not found.")
+    return None

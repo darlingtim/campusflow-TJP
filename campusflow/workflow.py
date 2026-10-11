@@ -46,7 +46,7 @@ def normalise_status(status):
     """Turn input like ' In Progress ' or 'in-progress' into 'in progress'."""
     if not isinstance(status, str):
         raise ValueError("Status must be text.")
-    return status.strip().lower().replace(" ", "_").replace("-", "_")
+    return status.strip().lower().replace("_", " ").replace("-", " ")
 
 
 def apply_status_change(tickets, ticket_id, new_status):
