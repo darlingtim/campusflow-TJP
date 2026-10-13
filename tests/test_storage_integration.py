@@ -49,6 +49,9 @@ class TestTicketStorageIntegration(unittest.TestCase):
             os.chdir(directory)
             try:
                 self.assertEqual(read_ticket_file(), [])
+                self.assertTrue(os.path.isfile("tickets.json"))
+                with open("tickets.json") as tickets_file:
+                    self.assertEqual(json.load(tickets_file), [])
             finally:
                 os.chdir(current_directory)
 
