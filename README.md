@@ -17,6 +17,8 @@ JSON file.
 - Generate sequential ticket IDs such as `T001`, `T002`, and `T011`.
 - List all stored tickets.
 - Search for a ticket by ID.
+- Search tickets by title substring, with optional filters for category,
+  status and priority that combine with AND.
 - Assign tickets to staff members.
 - Display an unresolved work queue ordered by priority and then ticket number.
 - Enforce the status lifecycle:
@@ -41,14 +43,20 @@ JSON file.
 │   ├── create_tickets.py       # Ticket model and ticket creation
 │   ├── list_view.py             # Listing and ticket lookup
 │   ├── report.py                # Ticket reporting
+│   ├── search.py                # Read-only search and priority sorting
 │   ├── validate_ticket.py       # Input validation
 │   └── workflow.py              # Status transitions and work queue
+├── docs/
+│   ├── ai-learning-log.md
+│   ├── baseline-check.md        # Behaviour of the app before this sprint
+│   └── design-decisions.md      # Decisions and the evidence behind them
 ├── tests/
 │   ├── test_assign.py
 │   ├── test_cli_integration.py
 │   ├── test_create_and_validate.py
 │   ├── test_list_view.py
 │   ├── test_report.py
+│   ├── test_search.py
 │   ├── test_storage_integration.py
 │   └── test_workflow.py
 ├── .github/workflows/tests.yml # Continuous integration workflow
@@ -75,7 +83,8 @@ The application displays this menu:
 | 5 | View the work queue |
 | 6 | Update ticket status |
 | 7 | Generate a ticket report |
-| 8 | Exit |
+| 8 | Search tickets |
+| 9 | Exit |
 
 The application reads and writes `./tickets.json` relative to the directory
 where `main.py` is started. If the file does not exist, reads return an empty
@@ -132,7 +141,7 @@ message.
 ## Testing
 
 The project uses Python's standard `unittest` framework. The suite currently
-contains 38 tests covering:
+contains 52 tests covering:
 
 - Ticket priority boundaries and serialization.
 - Validation success, validation errors, and malformed values.
@@ -142,13 +151,15 @@ contains 38 tests covering:
 - Missing stores and failed updates.
 - Status lifecycle rules and invalid transitions.
 - Work queue filtering, ordering, and immutability.
+- Search matching, combined filters, and read-only behaviour.
+- Priority sorting and non-numeric-safe tie-breaking.
 - Report generation.
 - Main menu exit and invalid-option behavior.
 
 Run the complete suite:
 
 ```bash
-python -m unittest discover -v
+python -m unittest discover -s tests -v
 ```
 
 Compile all Python sources:
