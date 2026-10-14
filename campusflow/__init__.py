@@ -54,3 +54,10 @@ from . create_tickets import raise_ticket
 from . assign import assign_ticket
 from . list_view import list_tickets, get_ticket
 from . workflow import change_status, show_work_queue
+from . notes import (
+    Note,
+    add_and_save_note,
+    add_ticket_note,
+    generate_note_id,
+    get_visible_notes,
+)
