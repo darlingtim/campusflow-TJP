@@ -25,7 +25,9 @@ JSON file.
   - `open` -> `in progress` -> `resolved`
   - A resolved ticket can be explicitly reopened to `open`.
 - Require an assignee before a ticket can move to `in progress`.
-- Generate status and priority reports.
+- Generate status, priority and category reports.
+- Run an interactive Engineering Understanding Check on the application's
+  own behaviour.
 - Persist tickets in human-readable `tickets.json`.
 
 ## Requirements
@@ -44,6 +46,7 @@ JSON file.
 │   ├── list_view.py             # Listing and ticket lookup
 │   ├── report.py                # Ticket reporting
 │   ├── search.py                # Read-only search and priority sorting
+│   ├── understanding_check.py   # Engineering Understanding Check
 │   ├── validate_ticket.py       # Input validation
 │   └── workflow.py              # Status transitions and work queue
 ├── docs/
@@ -58,6 +61,7 @@ JSON file.
 │   ├── test_report.py
 │   ├── test_search.py
 │   ├── test_storage_integration.py
+│   ├── test_understanding_check.py
 │   └── test_workflow.py
 ├── .github/workflows/tests.yml # Continuous integration workflow
 ├── main.py                      # Interactive CLI entry point
@@ -84,7 +88,8 @@ The application displays this menu:
 | 6 | Update ticket status |
 | 7 | Generate a ticket report |
 | 8 | Search tickets |
-| 9 | Exit |
+| 9 | Engineering Understanding Check |
+| 10 | Exit |
 
 The application reads and writes `./tickets.json` relative to the directory
 where `main.py` is started. If the file does not exist, reads return an empty
@@ -172,10 +177,26 @@ file. Both paths format one shared result, so the printed figures and the
 returned figures cannot disagree. An empty stored ticket file produces a
 `No tickets found in the report.` message.
 
+## Engineering Understanding Check
+
+Menu option 9 runs a six-question multiple-choice check on how this
+application is meant to behave. Answers must be `A`, `B`, `C` or `D`; an
+invalid entry is rejected and the question is asked again. The check scores
+one point per correct answer and reports a result out of six.
+
+It then asks for a written explanation of at least two answers and prints
+them for mentor discussion. Explanations are recorded, not graded: a
+matching keyword does not make an explanation correct. The check writes
+nothing to disk.
+
+The question bank (`QUESTIONS`) is data and the scoring (`score_answers`)
+is a pure function that reads nothing but the answers, so the score can be
+tested without going through `input()` or `print()`.
+
 ## Testing
 
 The project uses Python's standard `unittest` framework. The suite currently
-contains 64 tests covering:
+contains 90 tests covering:
 
 - Ticket priority boundaries and serialization.
 - Validation success, validation errors, and malformed values.
@@ -189,6 +210,8 @@ contains 64 tests covering:
 - Priority sorting and non-numeric-safe tie-breaking.
 - Report totals, per-status/priority/category counts, unresolved and
   resolved counts, resolution percentage, and the empty-dataset case.
+- Understanding check scoring, invalid-answer retry, and the explanation
+  rules.
 - Main menu exit and invalid-option behavior.
 
 Run the complete suite:
