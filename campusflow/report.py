@@ -1,5 +1,3 @@
-import json
-import os
 from . import read_ticket_file as read_ticket
 
 
