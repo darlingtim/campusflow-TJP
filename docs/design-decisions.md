@@ -104,7 +104,10 @@ normalisation.
 **Consequences.** The report must use the same normalisation as the workflow.
 Any new status comparison must go through the shared helper.
 
-**Status.** Proposed 2026-10-14. Needs Engineer A's sign-off.
+**Status.** Partly implemented 2026-10-14. `campusflow/report.py` now calls
+`workflow.normalise_status` instead of its own `replace(" ", "_")`, so a reported
+status matches the stored one. Promoting the spelling to a single shared
+constant still needs Engineer A's sign-off.
 
 ## D5 — Note IDs are per ticket, not global
 
@@ -145,25 +148,32 @@ explicitly, rather than search applying an order of its own.
 
 **Status.** Implemented 2026-10-14 (`campusflow/search.py`, `tests/test_search.py`).
 
-## D7 — Undecided: the `closed` status in reports
+## D7 — The `closed` status is removed from reports
 
-**Context.** The report prints `Closed ticket: 0`, and `tests/test_report.py`
-asserts on `closed`. But `closed` is not a legal status anywhere in the
+**Context.** The report printed `Closed ticket: 0`, and `tests/test_report.py`
+asserted on `closed`. But `closed` is not a legal status anywhere in the
 application — `workflow.VALID_STATUSES` is open / in progress / resolved — so the
 line always prints zero.
 
-**Decision.** **No decision yet.** This is either a missing feature (a fifth
-status that was planned and never implemented) or leftover code from an earlier
-draft. Removing it and adding it are different products, so it needs a decision
-rather than a patch.
+**Decision.** **Removed.** `closed` is not in `VALID_STATUSES`, no transition
+produces it, and no validator accepts it, so the line was structurally incapable
+of printing anything except zero. The brief's lifecycle is
+`open -> in progress -> resolved`, which leaves no room for a fifth state.
+Removing it and implementing it are different products, and there is no evidence
+for the latter.
 
 **Evidence.** Baseline input 2; `campusflow/report.py:39`; confirmed defect 3.
 
-**Consequences.** Left alone, the report continues to display a count that can
-never be non-zero, which undermines Requirement D's goal of trustworthy
-insights.
+**Consequences.** The breakdown is now driven by `VALID_STATUSES` rather than by
+three hardcoded lines, so this class of defect cannot recur. The `closed` line
+and the assertion in `tests/test_report.py` are deleted rather than left in
+place. Removing the line also exposed a second defect in the same block: the
+breakdown counted `open`, `in progress` and `closed`, so **`resolved` tickets
+were counted nowhere** — they appeared in the total and then vanished from the
+status counts. That is fixed in the same change.
 
-**Status.** **Open.** To be decided by the team and recorded here.
+**Status.** Decided and implemented 2026-10-14 (`campusflow/report.py`,
+`tests/test_report.py`).
 
 ## D8 — Reading the tickets must not create the store
 
@@ -194,3 +204,52 @@ fix.
 
 **Status.** **Open.** The fix belongs in the storage layer, so it needs
 Engineer A.
+
+## D9 — The printed report and the structured report are one result
+
+**Context.** `report.py` built a structured result in `_build_ticket_report`,
+but the printing path did not use it: it recomputed every count inline with its
+own `len([ticket for ticket in ...])` comprehensions. Two independent
+calculations over the same data, in the same module.
+
+**Decision.** Build once, format once. `_build_ticket_report()` produces the
+only report dictionary; `_format_report()` renders that dictionary and counts
+nothing. Requirement D's figures exist in exactly one place.
+
+**Evidence.** At baseline the two paths already disagreed:
+`_build_ticket_report` produced the key `in_progress` (via
+`status.replace(" ", "_")`), while the printed block tested for both
+`in progress` and `in_progress` and separately counted `closed`. A caller and an
+operator could therefore read different figures from the same data.
+
+**Consequences.** Adding a figure means adding it to one dictionary. The printer
+cannot invent a number or omit one, and a test asserting on the returned
+dictionary is asserting on what the CLI prints.
+
+**Status.** Implemented 2026-10-14 (`campusflow/report.py`).
+
+## D10 — Category counts are matched case-insensitively
+
+**Context.** `create_tickets.raise_ticket` applies `.lower()` to urgency but not
+to category, so the category is stored exactly as the operator typed it:
+`Network`, `network` and `NETWORK` are three different stored strings for one
+category. The validator accepts all of them. A count keyed on the stored string
+would therefore split one category into three rows.
+
+**Decision.** Group categories on a case-folded, stripped key. The four legal
+categories are emitted in a fixed order including zeros, so the section has the
+same shape for every dataset. Priority and status keys are folded the same way
+for consistency.
+
+**Evidence.** `campusflow/create_tickets.py:50` reads the category with no
+normalisation, unlike line 51 for urgency. Verified end to end: a fixture
+containing `"category": "Network"` and `"category": "network"` reports
+`Network: 2`, not two rows of `1`.
+
+**Consequences.** The bucket keys are lowercase, so output is title-cased for
+display. An unrecognised category still gets its own row rather than being
+dropped, which keeps the section's rows adding up to the ticket total. The
+underlying storage inconsistency is left alone — normalising on write is
+Engineer A's call, and changing what is stored is a separate decision.
+
+**Status.** Implemented 2026-10-14 (`campusflow/report.py`).

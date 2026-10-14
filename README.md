@@ -30,7 +30,7 @@ JSON file.
 
 ## Requirements
 
-- Python 3.11, 3.12, or 3.13
+- Python 3.12 or 3.13 (the versions continuous integration verifies)
 - No third-party Python packages are required.
 
 ## Project structure
@@ -128,20 +128,54 @@ stored list order unchanged. Sorting is:
 
 ## Reporting
 
-The report feature can:
+The report covers total tickets, counts by status, priority and category,
+the unresolved count, the resolved count, and the resolution percentage:
 
-- Return a structured report for supplied ticket data with total count,
-  original tickets, and counts grouped by normalized status.
-- Print a report from the stored JSON file, including totals by status and
-  priority.
+```text
+Total tickets:  5
+=======================
+Tickets By Status:
+---------------------
+Open:  2
+In Progress:  1
+Resolved:  2
+Unresolved (open + in progress):  3
+Resolved:  2
+Resolution rate:  40.0%
+==============================
+Tickets By Priority:
+------------------------------
+Critical:  2
+...
+Tickets By Category:
+------------------------------
+Network:  2
+...
+```
 
-An empty stored ticket file produces a `No tickets found in the report.`
-message.
+- `unresolved` counts `open` plus `in progress` tickets.
+- `resolution_percent` is `resolved / total * 100`, rounded to one decimal
+  place. An empty dataset reports `0.0%` rather than failing.
+- A ticket counts under its **current** status, so a reopened ticket counts
+  as `open`. Status buckets never overlap, so they always add up to the
+  total.
+- Statuses are matched through `workflow.normalise_status`, so `In Progress`
+  and `in_progress` land in the same bucket as `in progress`.
+- Categories are matched case-insensitively, since ticket creation stores
+  the category exactly as typed. `Network` and `network` are one bucket.
+- There is no `closed` bucket: `closed` is not a legal status in this
+  application (see `docs/design-decisions.md`, D7).
+
+`generate_total_ticket_report(tickets)` returns the structured report as a
+dictionary; called with no argument it prints the same report for the stored
+file. Both paths format one shared result, so the printed figures and the
+returned figures cannot disagree. An empty stored ticket file produces a
+`No tickets found in the report.` message.
 
 ## Testing
 
 The project uses Python's standard `unittest` framework. The suite currently
-contains 52 tests covering:
+contains 64 tests covering:
 
 - Ticket priority boundaries and serialization.
 - Validation success, validation errors, and malformed values.
@@ -153,7 +187,8 @@ contains 52 tests covering:
 - Work queue filtering, ordering, and immutability.
 - Search matching, combined filters, and read-only behaviour.
 - Priority sorting and non-numeric-safe tie-breaking.
-- Report generation.
+- Report totals, per-status/priority/category counts, unresolved and
+  resolved counts, resolution percentage, and the empty-dataset case.
 - Main menu exit and invalid-option behavior.
 
 Run the complete suite:
@@ -172,7 +207,7 @@ python -m compileall -q .
 
 GitHub Actions is configured in
 `.github/workflows/tests.yml`. It runs on every push and pull request and
-tests Python 3.11, 3.12, and 3.13. Each matrix job:
+tests Python 3.12 and 3.13. Each matrix job:
 
 1. Checks out the repository.
 2. Installs the selected Python version.
