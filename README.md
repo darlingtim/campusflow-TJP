@@ -55,6 +55,7 @@ JSON file.
 │   └── design-decisions.md      # Decisions and the evidence behind them
 ├── tests/
 │   ├── test_assign.py
+│   ├── test_bug_hunter.py
 │   ├── test_cli_integration.py
 │   ├── test_create_and_validate.py
 │   ├── test_list_view.py
@@ -108,6 +109,15 @@ The following values are accepted:
 Invalid tickets raise `TicketValidationError` before persistence. Blank staff
 names and invalid or unknown ticket IDs are rejected by their respective
 operations.
+
+**Known gap.** `affected_users` rejects booleans, floats, zero and negative
+counts, but a numeric *string* such as `"12"` is still accepted, because the
+check is `str(value).isdigit()`. Requirement A requires an actual integer, so
+this is a defect rather than a feature: the sample `tickets.json` in this
+repository ships `"affected_users": "12"` and loads only for that reason.
+`tests/test_bug_hunter.py` records the gap, and
+`docs/design-decisions.md` D2 describes the migration that must land before
+the validator is tightened.
 
 ## Status workflow and queue
 
@@ -196,7 +206,7 @@ tested without going through `input()` or `print()`.
 ## Testing
 
 The project uses Python's standard `unittest` framework. The suite currently
-contains 90 tests covering:
+contains 95 tests covering:
 
 - Ticket priority boundaries and serialization.
 - Validation success, validation errors, and malformed values.
@@ -212,6 +222,7 @@ contains 90 tests covering:
   resolved counts, resolution percentage, and the empty-dataset case.
 - Understanding check scoring, invalid-answer retry, and the explanation
   rules.
+- Bug-hunter boundary tests for the accepted types of `affected_users`.
 - Main menu exit and invalid-option behavior.
 
 Run the complete suite:
