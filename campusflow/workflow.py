@@ -80,7 +80,8 @@ def apply_status_change(tickets, ticket_id, new_status):
         assignee = ticket.get("assigned_to")
         if assignee is None or not str(assignee).strip():
             raise ValueError(
-                f"Ticket {ticket['id']} must be assigned before status can be change."
+                f"Ticket {ticket['id']} must be assigned before its status "
+                f"can be changed."
             )
 
     ticket["status"] = new_status
