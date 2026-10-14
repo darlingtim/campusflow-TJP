@@ -129,6 +129,53 @@ class TestNote(unittest.TestCase):
         self.assertEqual(ticket["notes"], [note])
         self.assertEqual(get_visible_notes(ticket, "support_lead"), [note])
 
+    def test_add_and_save_note_persists_note_added_to_ticket_object(self):
+        ticket = make_ticket()
+
+        with tempfile.TemporaryDirectory() as directory:
+            old_directory = os.getcwd()
+            os.chdir(directory)
+            try:
+                with open("tickets.json", "w") as tickets_file:
+                    json.dump([ticket.to_dict()], tickets_file)
+
+                note = add_and_save_note(
+                    ticket,
+                    "Ada",
+                    "support_staff",
+                    "Persisted object update",
+                )
+
+                with open("tickets.json") as tickets_file:
+                    stored_tickets = json.load(tickets_file)
+            finally:
+                os.chdir(old_directory)
+
+        self.assertEqual(ticket.notes, [note])
+        self.assertEqual(len(stored_tickets), 1)
+        self.assertEqual(stored_tickets[0]["notes"], [note])
+
+    def test_add_note_appends_note_to_ticket(self):
+        ticket = make_ticket()
+        note = Note("N001", "Ada", "support_staff", "Direct update")
+
+        ticket.add_note(note)
+
+        self.assertEqual(ticket.notes, [note])
+        self.assertEqual(ticket.to_dict()["notes"], [note.to_dict()])
+
+    def test_add_note_rejects_resolved_ticket(self):
+        ticket = make_ticket(status="resolved")
+        note = Note("N001", "Ada", "support_staff", "Direct update")
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot add notes to a resolved ticket.",
+        ):
+            ticket.add_note(note)
+
+        self.assertEqual(ticket.notes, [])
+
     def test_add_and_save_note_updates_existing_ticket_without_appending_duplicate(self):
         ticket_data = make_ticket().to_dict()
 
