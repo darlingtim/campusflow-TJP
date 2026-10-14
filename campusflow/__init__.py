@@ -55,3 +55,4 @@ from . assign import assign_ticket
 from . list_view import list_tickets, get_ticket
 from . workflow import change_status, show_work_queue
 from . search import search_tickets_menu
+from . understanding_check import understanding_check_menu
