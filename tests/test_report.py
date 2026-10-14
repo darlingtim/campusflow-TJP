@@ -6,9 +6,11 @@ if __package__ in (None, ""):
 	sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from campusflow.report import generate_total_ticket_report
+from campusflow.workflow import apply_status_change, reopen_ticket
 
 
-def make_ticket(ticket_id, status="open", priority="low", category="Network"):
+def make_ticket(ticket_id, status="open", priority="low", category="Network",
+		assigned_to=None):
 	"""A ticket carrying only the fields the report reads."""
 	return {
 		"id": ticket_id,
@@ -18,7 +20,7 @@ def make_ticket(ticket_id, status="open", priority="low", category="Network"):
 		"affected_users": 1,
 		"priority": priority,
 		"status": status,
-		"assigned_to": None,
+		"assigned_to": assigned_to,
 	}
 
 
@@ -195,6 +197,39 @@ class TestTicketsReport(unittest.TestCase):
 		report = generate_total_ticket_report(tickets)
 
 		self.assertEqual(report["by_category"]["network"], 3)
+
+	def test_report_counts_agree_with_a_known_fixture_after_resolve_and_reopen(self):
+		# Acceptance case 11. The counts must follow the CURRENT status, so a
+		# ticket that is resolved and then reopened counts as open again.
+		tickets = [
+			make_ticket("T001", status="open", assigned_to="Ada"),
+			make_ticket("T002", status="in progress", assigned_to="Bo"),
+			make_ticket("T003", status="open"),
+		]
+
+		apply_status_change(tickets, "T001", "in progress")
+		apply_status_change(tickets, "T001", "resolved")
+		apply_status_change(tickets, "T002", "resolved")
+		reopen_ticket(tickets, "T002")
+
+		report = generate_total_ticket_report(tickets)
+
+		self.assertEqual(report["total"], 3)
+		self.assertEqual(report["by_status"]["open"], 2)
+		self.assertEqual(report["by_status"]["in progress"], 0)
+		self.assertEqual(report["by_status"]["resolved"], 1)
+		self.assertEqual(report["unresolved"], 2)
+		self.assertEqual(report["resolved"], 1)
+		self.assertEqual(report["resolution_percent"], 33.3)
+
+	def test_report_does_not_change_the_tickets_it_reads(self):
+		# The report reads statuses to count them; it must not write any back.
+		tickets = [make_ticket("T001", status="in progress")]
+		original_tickets = [ticket.copy() for ticket in tickets]
+
+		generate_total_ticket_report(tickets)
+
+		self.assertEqual(tickets, original_tickets)
 
 	def test_tickets_report_does_not_mutate_the_input_collection(self):
 		tickets = [make_ticket("T001", status="open")]
