@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime
 from unittest.mock import patch
 
 from campusflow.create_tickets import Ticket, generate_ticket_id, raise_ticket
@@ -25,6 +26,18 @@ class TestTicket(unittest.TestCase):
         ticket = Ticket("T001", "Title", "Other", "low", "1")
         self.assertEqual(ticket.to_dict()["status"], "open")
         self.assertIsNone(ticket.to_dict()["assigned_to"])
+
+    def test_to_dict_contains_utc_creation_timestamp(self):
+        ticket = Ticket("T001", "Title", "Other", "low", "1")
+
+        created_at = ticket.to_dict()["created_at"]
+
+        self.assertEqual(created_at, ticket.created_at)
+        self.assertIsNotNone(datetime.fromisoformat(created_at).tzinfo)
+
+    def test_to_dict_records_authenticated_creator(self):
+        ticket = Ticket("T001", "Title", "Other", "low", "1", "U007")
+        self.assertEqual(ticket.to_dict()["created_by"], "U007")
 
     def test_invalid_numeric_input_can_be_validated(self):
         ticket = Ticket("T001", "Title", "Other", "low", "not-a-number")
@@ -59,6 +72,17 @@ class TestTicket(unittest.TestCase):
                 with self.assertRaises(TicketValidationError):
                     raise_ticket()
         save.assert_not_called()
+
+    def test_raise_ticket_accepts_authenticated_user(self):
+        user = {"id": "U001", "name": "Ada", "role": "student_fellow"}
+        answers = ["Wi-Fi outage", "Network", "high", "2"]
+        with patch("builtins.input", side_effect=answers):
+            with patch("campusflow.create_tickets.generate_ticket_id", return_value="T001"):
+                with patch("campusflow.create_tickets.save_ticket") as save:
+                    raise_ticket(user)
+
+        saved_ticket = save.call_args.args[0]
+        self.assertEqual(saved_ticket["created_by"], "U001")
 
 
 if __name__ == "__main__":
