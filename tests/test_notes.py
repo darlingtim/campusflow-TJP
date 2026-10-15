@@ -62,6 +62,20 @@ class TestNote(unittest.TestCase):
                 self.assertEqual(note["visibility"], "shared")
                 self.assertEqual(ticket.notes, [note])
 
+    def test_authenticated_user_can_add_note_and_note_keeps_user_id(self):
+        ticket = make_ticket()
+        user = {
+            "id": "U001",
+            "name": "Ada Lovelace",
+            "role": "support_staff",
+        }
+
+        note = add_ticket_note(ticket, user, "Investigating")
+
+        self.assertEqual(note["author"], "Ada Lovelace")
+        self.assertEqual(note["author_id"], "U001")
+        self.assertEqual(note["role"], "support_staff")
+
     def test_add_internal_note_requires_support_role(self):
         with self.assertRaisesRegex(
             TicketValidationError,

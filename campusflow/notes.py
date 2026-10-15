@@ -62,8 +62,16 @@ def generate_note_id(ticket):
     return f"N{next_number:03d}"
 
 
-def add_ticket_note(ticket, author, role, message, visibility="shared"):
+def add_ticket_note(ticket, author, role=None, message=None, visibility="shared"):
     """Add a shared or internal note to a ticket."""
+
+    author_id = None
+    if isinstance(author, dict):
+        if message is None:
+            message = role
+        role = author.get("role")
+        author_id = author.get("id")
+        author = author.get("name") or author.get("username")
 
     allowed_roles = {
         "student_fellow",
@@ -103,6 +111,8 @@ def add_ticket_note(ticket, author, role, message, visibility="shared"):
         message=message,
         visibility=visibility,
     ).to_dict()
+    if author_id is not None:
+        note["author_id"] = author_id
 
     _ticket_notes(ticket).append(note)
 
@@ -111,6 +121,9 @@ def add_ticket_note(ticket, author, role, message, visibility="shared"):
 
 def get_visible_notes(ticket, role):
     """Return only the notes the user's role can view."""
+
+    if isinstance(role, dict):
+        role = role.get("role")
 
     if role not in {
         "student_fellow",
@@ -131,7 +144,7 @@ def get_visible_notes(ticket, role):
 
 
 
-def add_and_save_note(ticket, author, role, message, visibility="shared"):
+def add_and_save_note(ticket, author, role=None, message=None, visibility="shared"):
     note = add_ticket_note(
         ticket=ticket,
         author=author,
