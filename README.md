@@ -42,8 +42,10 @@ JSON file.
 ├── campusflow/
 │   ├── __init__.py             # JSON storage and public package exports
 │   ├── assign.py               # Ticket assignment
+│   ├── auth.py                 # User registration and login
 │   ├── create_tickets.py       # Ticket model and ticket creation
 │   ├── list_view.py             # Listing and ticket lookup
+│   ├── notes.py                # Ticket follow-up notes
 │   ├── report.py                # Ticket reporting
 │   ├── search.py                # Read-only search and priority sorting
 │   ├── understanding_check.py   # Engineering Understanding Check
@@ -55,10 +57,12 @@ JSON file.
 │   └── design-decisions.md      # Decisions and the evidence behind them
 ├── tests/
 │   ├── test_assign.py
+│   ├── test_auth.py
 │   ├── test_bug_hunter.py
 │   ├── test_cli_integration.py
 │   ├── test_create_and_validate.py
 │   ├── test_list_view.py
+│   ├── test_notes.py
 │   ├── test_report.py
 │   ├── test_search.py
 │   ├── test_storage_integration.py
@@ -66,7 +70,8 @@ JSON file.
 │   └── test_workflow.py
 ├── .github/workflows/tests.yml # Continuous integration workflow
 ├── main.py                      # Interactive CLI entry point
-└── tickets.json                 # Local ticket store and sample data
+├── tickets.json                 # Local ticket store and sample data
+└── users.json                   # User accounts for registration and login
 ```
 
 ## Running the application
@@ -206,7 +211,7 @@ tested without going through `input()` or `print()`.
 ## Testing
 
 The project uses Python's standard `unittest` framework. The suite currently
-contains 95 tests covering:
+contains 114 tests covering:
 
 - Ticket priority boundaries and serialization.
 - Validation success, validation errors, and malformed values.
@@ -223,6 +228,8 @@ contains 95 tests covering:
 - Understanding check scoring, invalid-answer retry, and the explanation
   rules.
 - Bug-hunter boundary tests for the accepted types of `affected_users`.
+- Ticket notes: creation, persistence, and rejection when a ticket is resolved.
+- User registration and login validation.
 - Main menu exit and invalid-option behavior.
 
 Run the complete suite:
