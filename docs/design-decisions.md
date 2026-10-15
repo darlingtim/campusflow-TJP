@@ -296,4 +296,6 @@ what it asks for, but the rule belongs in the model. This and the `id` versus
 `note_id` naming are recorded as review observations for Engineer A rather than
 patched here, because `notes.py` is A's module.
 
-**Status.** Implemented 2026-10-15 (`campusflow/notes_menu.py`).
+**Status.** Implemented 2026-10-15 (`campusflow/notes_menu.py`). The full
+reciprocal review of A's note and storage work, including findings recorded here
+and two that are not, is in `docs/peer-review-engineer-a.md`.
