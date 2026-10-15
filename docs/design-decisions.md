@@ -253,3 +253,47 @@ underlying storage inconsistency is left alone — normalising on write is
 Engineer A's call, and changing what is stored is a separate decision.
 
 **Status.** Implemented 2026-10-14 (`campusflow/report.py`).
+
+## D11 — The notes menu adapts to the API that exists, and shows every note
+
+**Context.** Requirement B describes a note as `{note_id, author, message}` and
+§04 says Engineer A will expose `add_note(ticket_id, author, message)`. What
+landed in #51 is different in shape: `notes.add_ticket_note(ticket, author,
+role=None, message=None, visibility="shared")` takes the ticket dictionary
+rather than an ID, and requires a `role` drawn from a fixed set. The stored note
+carries `id` (not `note_id`) alongside `role`, `visibility` and `created_at`.
+The CLI has to bridge that gap rather than assume the shape the contract
+describes.
+
+**Decision.** Three parts.
+
+1. The menu passes a fixed `OPERATOR_ROLE = "support_staff"` and the default
+   `shared` visibility instead of prompting for them. This application has no
+   login, so there is no honest role to collect, and a prompt would ask the
+   operator a question the system cannot check the answer to.
+2. Option 10 prints **every** note, including `internal` ones, and does not call
+   `get_visible_notes`. Requirement B asks that the user "read all notes for a
+   ticket in ID order"; with no login there is no role to filter by, and
+   filtering on a role nobody supplied would hide notes arbitrarily.
+3. The blank-author rule and the 5-300 character rule live in
+   `notes_menu.validate_note_text`, which runs before the store is touched,
+   because `notes.add_ticket_note` checks neither.
+
+**Evidence.** `campusflow/notes.py:65` shows the signature and `:87` the role
+set the CLI must satisfy. `:90` rejects a blank message but sets no length
+bound, and `author` is used to build the note without ever being validated, so
+both of Requirement B's input rules would go unenforced if the CLI did not add
+them. `campusflow/notes.py:52` computes the next ID with
+`max(existing, default=0) + 1`, and it is called only when the note object is
+constructed, which is after every check — so a rejected note consumes no ID.
+Verified end to end in a scratch copy of the repository: a store holding `N001`
+rejects a short message, and the next accepted note is `N002`, not `N003`.
+
+**Consequences.** The 5-300 rule and the blank-author rule are enforced in the
+CLI rather than in the note model, so a caller that skips the menu can still
+store a one-character note. Requirement B is satisfied for the CLI, which is
+what it asks for, but the rule belongs in the model. This and the `id` versus
+`note_id` naming are recorded as review observations for Engineer A rather than
+patched here, because `notes.py` is A's module.
+
+**Status.** Implemented 2026-10-15 (`campusflow/notes_menu.py`).
