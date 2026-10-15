@@ -10,6 +10,7 @@ class Ticket:
         self.priority = self.calculate_priority()
         self.status = "open"
         self.assigned_to = None
+        self.notes = []
 
     def calculate_priority(self):
         """Determine the priority of the ticket based on urgency and affected users."""
@@ -30,6 +31,13 @@ class Ticket:
         else:
             return "low"
 
+    def add_note(self, note):
+        """Add a note to the ticket."""
+        if self.status == "resolved":
+            raise ValueError("Cannot add notes to a resolved ticket.")
+
+        self.notes.append(note)
+
 
     def to_dict(self):
         return {
@@ -40,7 +48,11 @@ class Ticket:
             "affected_users": self.affected_users,
             "priority": self.priority,
             "status": self.status,
-            "assigned_to": self.assigned_to
+            "assigned_to": self.assigned_to,
+            "notes": [
+                note.to_dict() if hasattr(note, "to_dict") else note
+                for note in self.notes
+            ],
         }
 
 
