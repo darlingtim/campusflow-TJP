@@ -76,3 +76,4 @@ from . list_view import list_tickets, get_ticket
 from . workflow import change_status, show_work_queue
 from . search import search_tickets_menu
 from . understanding_check import understanding_check_menu
+from . notes_menu import add_follow_up_note, view_ticket_notes
