@@ -17,6 +17,8 @@ JSON file.
 - Generate sequential ticket IDs such as `T001`, `T002`, and `T011`.
 - List all stored tickets.
 - Search for a ticket by ID.
+- Search stored tickets by title, category, status, and priority, with the
+  results optionally reordered most-urgent-first.
 - Assign tickets to staff members.
 - Display an unresolved work queue ordered by priority and then ticket number.
 - Enforce the status lifecycle:
@@ -41,6 +43,7 @@ JSON file.
 │   ├── create_tickets.py       # Ticket model and ticket creation
 │   ├── list_view.py             # Listing and ticket lookup
 │   ├── report.py                # Ticket reporting
+│   ├── search.py                # Read-only ticket search
 │   ├── validate_ticket.py       # Input validation
 │   └── workflow.py              # Status transitions and work queue
 ├── tests/
@@ -49,6 +52,7 @@ JSON file.
 │   ├── test_create_and_validate.py
 │   ├── test_list_view.py
 │   ├── test_report.py
+│   ├── test_search.py
 │   ├── test_storage_integration.py
 │   └── test_workflow.py
 ├── .github/workflows/tests.yml # Continuous integration workflow
@@ -75,7 +79,8 @@ The application displays this menu:
 | 5 | View the work queue |
 | 6 | Update ticket status |
 | 7 | Generate a ticket report |
-| 8 | Exit |
+| 8 | Search tickets |
+| 9 | Exit |
 
 The application reads and writes `./tickets.json` relative to the directory
 where `main.py` is started. If the file does not exist, reads return an empty
@@ -129,10 +134,41 @@ The report feature can:
 An empty stored ticket file produces a `No tickets found in the report.`
 message.
 
+## Searching tickets
+
+Search is **read-only**: it never changes a ticket, never saves, and never
+changes the order of the stored file. It returns a new list.
+
+Menu option 8 asks for four filters. Leave any of them blank to ignore it:
+
+- **Title contains** — case-insensitive substring match.
+- **Category** — `Network`, `Hardware`, `Software`, or `Other`.
+- **Status** — `open`, `in progress`, or `resolved`.
+- **Priority** — `critical`, `high`, `medium`, or `low`.
+
+Supplied filters are combined with **AND**: a ticket must match every filter
+you give. Category, status, and priority are case-insensitive exact matches,
+and status also accepts separator variants such as `in_progress`. An invalid
+filter value is re-prompted instead of being accepted or crashing the menu.
+
+When more than one ticket matches, the view offers to sort the results by
+priority (most urgent first, ties broken by ticket number):
+
+1. `critical`
+2. `high`
+3. `medium`
+4. `low`
+5. Numeric ticket ID for ties
+
+The search itself does not sort. `search_tickets` keeps the stored order and
+`sort_by_priority` is a separate function, so the two behaviours stay testable
+on their own. Both are pure functions over a list of ticket dictionaries;
+`search_tickets_menu` is the only part that reads input or touches the file.
+
 ## Testing
 
 The project uses Python's standard `unittest` framework. The suite currently
-contains 38 tests covering:
+contains 72 tests covering:
 
 - Ticket priority boundaries and serialization.
 - Validation success, validation errors, and malformed values.
@@ -143,6 +179,11 @@ contains 38 tests covering:
 - Status lifecycle rules and invalid transitions.
 - Work queue filtering, ordering, and immutability.
 - Report generation.
+- Search filtering by title, category, status, and priority, including the
+  "blank means no filter" rule and case/separator handling.
+- Search result ordering and the guarantee that neither search nor sort
+  modifies the stored tickets.
+- Search menu re-prompting, the empty-store message, and the no-match message.
 - Main menu exit and invalid-option behavior.
 
 Run the complete suite:
