@@ -24,6 +24,7 @@ JSON file.
   - A resolved ticket can be explicitly reopened to `open`.
 - Require an assignee before a ticket can move to `in progress`.
 - Generate status and priority reports.
+- Add and read structured follow-up notes on open and in-progress tickets.
 - Persist tickets in human-readable `tickets.json`.
 
 ## Requirements
@@ -40,6 +41,7 @@ JSON file.
 │   ├── assign.py               # Ticket assignment
 │   ├── create_tickets.py       # Ticket model and ticket creation
 │   ├── list_view.py             # Listing and ticket lookup
+│   ├── notes_menu.py           # CLI menus for adding and viewing notes
 │   ├── report.py                # Ticket reporting
 │   ├── validate_ticket.py       # Input validation
 │   └── workflow.py              # Status transitions and work queue
@@ -48,6 +50,7 @@ JSON file.
 │   ├── test_cli_integration.py
 │   ├── test_create_and_validate.py
 │   ├── test_list_view.py
+│   ├── test_notes_menu.py
 │   ├── test_report.py
 │   ├── test_storage_integration.py
 │   └── test_workflow.py
@@ -75,7 +78,9 @@ The application displays this menu:
 | 5 | View the work queue |
 | 6 | Update ticket status |
 | 7 | Generate a ticket report |
-| 8 | Exit |
+| 8 | Add follow-up note |
+| 9 | View ticket notes |
+| 10 | Exit |
 
 The application reads and writes `./tickets.json` relative to the directory
 where `main.py` is started. If the file does not exist, reads return an empty
@@ -129,10 +134,37 @@ The report feature can:
 An empty stored ticket file produces a `No tickets found in the report.`
 message.
 
+## Follow-up notes
+
+Menu option 8 adds a note to a ticket and option 9 prints the notes for a
+ticket. Every rule below is checked before anything is written:
+
+- Only `open` and `in progress` tickets accept a note. A resolved ticket is
+  rejected with a message telling the operator to reopen it first.
+- The author label cannot be blank.
+- The message must be 5-300 characters after trimming.
+- A rejected note consumes no note ID, so the next accepted note takes the
+  next number in sequence rather than leaving a gap.
+
+Notes are stored inside the ticket under `notes`. Each note carries an `id`
+(`N001`, `N002`, ...), `author`, `role`, `message`, `visibility` and
+`created_at`. Option 9 prints them in numeric ID order, so `N010` follows
+`N002` instead of sorting as text, and a rejected note leaves the stored
+ticket byte-identical.
+
+`campusflow/notes_menu.py` only asks, calls and prints; the note model and its
+validation belong to `campusflow/notes.py`. Because this application has no
+login, the menu records the operator as `support_staff` with `shared`
+visibility and does not prompt for a role. `notes.add_ticket_note` enforces
+neither the blank-author rule nor the message length, so both are applied by
+`validate_note_text` in the menu before the store is touched. Option 9 shows
+every note rather than filtering by one, since the stored tickets carry no
+viewer to filter for.
+
 ## Testing
 
 The project uses Python's standard `unittest` framework. The suite currently
-contains 38 tests covering:
+contains 88 tests covering:
 
 - Ticket priority boundaries and serialization.
 - Validation success, validation errors, and malformed values.
@@ -143,6 +175,8 @@ contains 38 tests covering:
 - Status lifecycle rules and invalid transitions.
 - Work queue filtering, ordering, and immutability.
 - Report generation.
+- Note menus: author and message-length rules, rejection without consuming a
+  note ID, numeric note ordering, and the note lifecycle from open to resolve.
 - Main menu exit and invalid-option behavior.
 
 Run the complete suite:
