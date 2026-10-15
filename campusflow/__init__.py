@@ -74,4 +74,5 @@ from . create_tickets import raise_ticket
 from . assign import assign_ticket
 from . list_view import list_tickets, get_ticket
 from . workflow import change_status, show_work_queue
+from . notes_menu import add_follow_up_note, view_ticket_notes
 
