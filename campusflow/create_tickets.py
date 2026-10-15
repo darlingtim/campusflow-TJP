@@ -1,7 +1,10 @@
+from datetime import datetime, timezone
+
 from . import read_ticket_file, save_ticket, validate_ticket, TicketValidationError
 
 class Ticket:
-    def __init__(self, ticket_id, title, category, urgency, affected_users):
+    def __init__(self, ticket_id, title, category, urgency, affected_users,
+                 created_by=None):
         self.id = ticket_id
         self.title = title
         self.category = category
@@ -10,6 +13,11 @@ class Ticket:
         self.priority = self.calculate_priority()
         self.status = "open"
         self.assigned_to = None
+        self.notes = []
+        self.created_at = datetime.now(timezone.utc).isoformat(
+            timespec="seconds"
+        )
+        self.created_by = created_by
 
     def calculate_priority(self):
         """Determine the priority of the ticket based on urgency and affected users."""
@@ -30,9 +38,16 @@ class Ticket:
         else:
             return "low"
 
+    def add_note(self, note):
+        """Add a note to the ticket."""
+        if self.status == "resolved":
+            raise ValueError("Cannot add notes to a resolved ticket.")
+
+        self.notes.append(note)
+
 
     def to_dict(self):
-        return {
+        ticket_data = {
             "id": self.id,
             "title": self.title,
             "category": self.category,
@@ -40,11 +55,19 @@ class Ticket:
             "affected_users": self.affected_users,
             "priority": self.priority,
             "status": self.status,
-            "assigned_to": self.assigned_to
+            "assigned_to": self.assigned_to,
+            "created_at": self.created_at,
+            "notes": [
+                note.to_dict() if hasattr(note, "to_dict") else note
+                for note in self.notes
+            ],
         }
+        if self.created_by is not None:
+            ticket_data["created_by"] = self.created_by
+        return ticket_data
 
 
-def raise_ticket():
+def raise_ticket(current_user=None):
     """Function to raise a new ticket."""
     title = input("Enter ticket title: ")
     category = input("Enter category (Network, Hardware, Software, Other): ")
@@ -52,12 +75,19 @@ def raise_ticket():
     affected_users = input("Enter number of affected users: ")
     ticket_id =generate_ticket_id()
 
+    created_by = None
+    if current_user is not None:
+        if not isinstance(current_user, dict) or not current_user.get("id"):
+            raise ValueError("A valid logged-in user is required.")
+        created_by = current_user["id"]
+
     ticket = Ticket(
         ticket_id,
         title,
         category,
         urgency,
-        affected_users
+        affected_users,
+        created_by=created_by,
     )
     
     errors = validate_ticket(ticket)

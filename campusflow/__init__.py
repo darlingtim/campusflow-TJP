@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 from typing import Any, Dict
 
 
@@ -47,6 +48,25 @@ def read_ticket_file():
     """Read the ticket report from the JSON file."""
     ticket_file = "./tickets.json"
     return _load_tickets(ticket_file)
+
+
+# Loading and saving USERS
+USERS_FILE = Path("users.json")
+
+
+def load_users():
+    """ Loads users from USERS file"""
+    if not USERS_FILE.exists():
+        return []
+
+    with USERS_FILE.open("r", encoding="utf-8") as file:
+        return json.load(file)
+
+
+def save_users(users):
+    """ saves users to the USERS file"""
+    with USERS_FILE.open("w", encoding="utf-8") as file:
+        json.dump(users, file, indent=4)
 
 from . report import generate_total_ticket_report
 from . validate_ticket import validate_ticket, TicketValidationError
