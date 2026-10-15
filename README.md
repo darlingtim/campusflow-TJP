@@ -231,9 +231,14 @@ responsibilities.
 
 | Name | Role | Responsibilities |
 | --- | --- | --- |
-|  Timothy Ododo | Team Lead |  |
-|  Wuese Joy Ayande | member |  |
-|  Patrick Sean Odugboche | member  |
+| Timothy Ododo | Team Lead | Engineer A — ticket safety and storage: validation helpers, follow-up notes, safe JSON load and save |
+| Wuese Joy Ayande | Member | Original build — status workflow and the work queue |
+| Patrick Sean Odugboche | Member | Original build |
+| Okoh Daniel Oche | Member | Engineer B — search, reporting and CLI: search and filtering, quality reports, note menus, the Engineering Understanding Check |
+
+The first version of CampusFlow was built by Wuese Joy Ayande, Patrick Sean
+Odugboche and Timothy Ododo. The CampusFlow Next sprint continued the project
+with a pairing of Timothy Ododo (Engineer A) and Okoh Daniel Oche (Engineer B).
 
 ## Current implementation notes
 
