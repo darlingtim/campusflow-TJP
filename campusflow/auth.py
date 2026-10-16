@@ -53,12 +53,13 @@ def register_user():
     return user
 
 
-def login_user():
+def login_user(username=None, password=None):
     global _current_user
     users = load_users()
-
-    username = input("Username: ").strip().lower()
-    password = input("Password: ").strip()
+    if username is None:
+        username = input("Username: ").strip().lower()
+    if password is None:
+        password = input("Password: ").strip()
 
     for user in users:
         if (
@@ -72,3 +73,10 @@ def login_user():
     _current_user = None
     print("Invalid username or password.")
     return None
+
+
+def logout_user():
+    """Clear the active user session and log out."""
+    global _current_user
+    _current_user = None
+    print("You have been logged out successfully.")
