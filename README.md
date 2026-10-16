@@ -18,6 +18,15 @@ JSON file.
 - List all stored tickets.
 - Search for a ticket by ID.
 - Assign tickets to staff members.
+- Add shared or internal notes, restricted to the assigned staff member, the
+  student/fellow who created the ticket, or a support lead.
+- A student/fellow may include one optional initial note while creating a
+  ticket; notes added after creation must contain text.
+- Student/fellow notes are always shared; only support staff and support leads
+  can create internal notes.
+- `add_note()` is the no-argument interactive note-entry function. It prompts
+  for the ticket and message; author and role come from the logged-in user,
+  and support roles choose visibility interactively.
 - Display an unresolved work queue ordered by priority and then ticket number.
 - Enforce the status lifecycle:
   - `open` -> `in progress` -> `resolved`
