@@ -3,8 +3,16 @@ from datetime import datetime, timezone
 from . import read_ticket_file, save_ticket, validate_ticket, TicketValidationError
 
 class Ticket:
-    def __init__(self, ticket_id, title, category, urgency, affected_users,
-                 created_by=None):
+    def __init__(
+        self,
+        ticket_id,
+        title,
+        category,
+        urgency,
+        affected_users,
+        created_by=None,
+        initial_note=None,
+    ):
         self.id = ticket_id
         self.title = title
         self.category = category
@@ -18,6 +26,23 @@ class Ticket:
             timespec="seconds"
         )
         self.created_by = created_by
+
+        if initial_note is not None and not isinstance(initial_note, str):
+            raise TicketValidationError("Initial note must be text.")
+
+        if initial_note is not None and initial_note.strip():
+            if not isinstance(created_by, str) or not created_by.strip():
+                raise TicketValidationError(
+                    "A ticket creator is required for an initial note."
+                )
+            from .notes import add_ticket_note
+
+            add_ticket_note(
+                self,
+                author=created_by,
+                role="student_fellow",
+                message=initial_note,
+            )
 
     def calculate_priority(self):
         """Determine the priority of the ticket based on urgency and affected users."""
@@ -57,6 +82,7 @@ class Ticket:
             "status": self.status,
             "assigned_to": self.assigned_to,
             "created_at": self.created_at,
+            "created_by": self.created_by,
             "notes": [
                 note.to_dict() if hasattr(note, "to_dict") else note
                 for note in self.notes
@@ -67,7 +93,7 @@ class Ticket:
         return ticket_data
 
 
-def raise_ticket(current_user=None):
+def raise_ticket(current_user=None, initial_note=None):
     """Function to raise a new ticket."""
     title = input("Enter ticket title: ")
     category = input("Enter category (Network, Hardware, Software, Other): ")
@@ -88,6 +114,7 @@ def raise_ticket(current_user=None):
         urgency,
         affected_users,
         created_by=created_by,
+        initial_note=initial_note,
     )
     
     errors = validate_ticket(ticket)

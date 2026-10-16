@@ -68,10 +68,11 @@ def save_users(users):
     with USERS_FILE.open("w", encoding="utf-8") as file:
         json.dump(users, file, indent=4)
 
-from . report import generate_total_ticket_report
-from . validate_ticket import validate_ticket, TicketValidationError
-from . create_tickets import raise_ticket
+from .report import generate_total_ticket_report
+from .validate_ticket import validate_ticket, TicketValidationError
+from .create_tickets import raise_ticket
 from . assign import assign_ticket
 from . list_view import list_tickets, get_ticket
 from . workflow import change_status, show_work_queue
-
+from .notes import add_note
+from .auth import get_current_user, login_user, register_user

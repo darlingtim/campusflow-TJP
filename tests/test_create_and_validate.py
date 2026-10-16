@@ -26,6 +26,56 @@ class TestTicket(unittest.TestCase):
         ticket = Ticket("T001", "Title", "Other", "low", "1")
         self.assertEqual(ticket.to_dict()["status"], "open")
         self.assertIsNone(ticket.to_dict()["assigned_to"])
+        self.assertIsNone(ticket.to_dict()["created_by"])
+
+    def test_ticket_serializes_creator(self):
+        ticket = Ticket("T001", "Title", "Other", "low", "1", created_by="Ada")
+
+        self.assertEqual(ticket.to_dict()["created_by"], "Ada")
+
+    def test_initial_note_is_optional_when_creating_ticket(self):
+        without_note = Ticket("T001", "Title", "Other", "low", "1")
+        blank_note = Ticket(
+            "T002",
+            "Title",
+            "Other",
+            "low",
+            "1",
+            created_by="Ada",
+            initial_note="  ",
+        )
+
+        self.assertEqual(without_note.to_dict()["notes"], [])
+        self.assertEqual(blank_note.to_dict()["notes"], [])
+
+    def test_student_fellow_can_add_initial_note_when_creating_ticket(self):
+        ticket = Ticket(
+            "T001",
+            "Title",
+            "Other",
+            "low",
+            "1",
+            created_by="Ada",
+            initial_note="Initial details",
+        )
+
+        self.assertEqual(ticket.to_dict()["notes"][0]["message"], "Initial details")
+        self.assertEqual(ticket.to_dict()["notes"][0]["author"], "Ada")
+        self.assertEqual(ticket.to_dict()["notes"][0]["role"], "student_fellow")
+
+    def test_initial_note_requires_ticket_creator(self):
+        with self.assertRaisesRegex(
+            TicketValidationError,
+            "A ticket creator is required for an initial note.",
+        ):
+            Ticket(
+                "T001",
+                "Title",
+                "Other",
+                "low",
+                "1",
+                initial_note="Initial details",
+            )
 
     def test_to_dict_contains_utc_creation_timestamp(self):
         ticket = Ticket("T001", "Title", "Other", "low", "1")

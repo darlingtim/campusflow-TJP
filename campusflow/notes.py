@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from . import update_ticket
+from . import read_ticket_file, update_ticket
 from .validate_ticket import TicketValidationError
 
 
@@ -49,6 +49,23 @@ def _note_value(note, field, default=None):
     return getattr(note, field, default)
 
 
+def _identity_matches(user_id, user_name, stored_identity):
+    if not isinstance(stored_identity, str):
+        return False
+
+    stored_identity = stored_identity.strip().casefold()
+    if user_id and str(user_id).strip().casefold() == stored_identity:
+        return True
+    if not isinstance(user_name, str):
+        return False
+
+    user_name = user_name.strip().casefold()
+    return (
+        user_name == stored_identity
+        or user_name.split(" ", 1)[0] == stored_identity
+    )
+
+
 def generate_note_id(ticket):
     """Generate the next note ID for a ticket."""
     existing_numbers = [
@@ -62,7 +79,9 @@ def generate_note_id(ticket):
     return f"N{next_number:03d}"
 
 
-def add_ticket_note(ticket, author, role=None, message=None, visibility="shared"):
+
+def add_ticket_note(ticket, author, role=None, message=None, visibility=None):
+
     """Add a shared or internal note to a ticket."""
 
     author_id = None
@@ -89,6 +108,35 @@ def add_ticket_note(ticket, author, role=None, message=None, visibility="shared"
 
     if not isinstance(message, str) or not message.strip():
         raise TicketValidationError("Note cannot be empty.")
+
+    if role != "support_lead":
+        if not isinstance(author, str) or not author.strip():
+            raise TicketValidationError("Note owner cannot be blank.")
+
+        assigned_to = _ticket_value(ticket, "assigned_to")
+        created_by = _ticket_value(ticket, "created_by")
+        is_assigned_staff = _identity_matches(
+            author_id, author, assigned_to
+        )
+        is_ticket_creator = (
+            role == "student_fellow"
+            and _identity_matches(author_id, author, created_by)
+        )
+
+        if not is_assigned_staff and not is_ticket_creator:
+            if role == "student_fellow":
+                raise TicketValidationError(
+                    "Only the ticket creator or assigned staff member "
+                    "can add a note."
+                )
+            raise TicketValidationError(
+                "Only the assigned staff member can add a note."
+            )
+
+    if role == "student_fellow":
+        visibility = "shared"
+    elif visibility is None:
+        visibility = _request_visibility()
 
     if visibility not in {"shared", "internal"}:
         raise TicketValidationError(
@@ -119,6 +167,19 @@ def add_ticket_note(ticket, author, role=None, message=None, visibility="shared"
     return note
 
 
+def _request_visibility():
+    """Prompt support users to choose shared or internal visibility."""
+    while True:
+        choice = input(
+            "Choose note visibility (1 = shared, 2 = internal): "
+        ).strip()
+        if choice == "1":
+            return "shared"
+        if choice == "2":
+            return "internal"
+        print("Invalid visibility. Choose 1 for shared or 2 for internal.")
+
+
 def get_visible_notes(ticket, role):
     """Return only the notes the user's role can view."""
 
@@ -143,8 +204,8 @@ def get_visible_notes(ticket, role):
     ]
 
 
+def add_and_save_note(ticket, author, role=None, message=None, visibility=None):
 
-def add_and_save_note(ticket, author, role=None, message=None, visibility="shared"):
     note = add_ticket_note(
         ticket=ticket,
         author=author,
@@ -162,3 +223,28 @@ def add_and_save_note(ticket, author, role=None, message=None, visibility="share
 
     return note
 
+
+def add_note():
+    """Prompt for note details for the currently logged-in user."""
+    from .auth import get_current_user
+
+    ticket_id = input("Enter ticket ID: ").strip()
+    message = input("Enter note: ")
+    current_user = get_current_user()
+    if current_user is None:
+        raise TicketValidationError("A logged-in user is required.")
+
+    tickets = read_ticket_file()
+    ticket = next(
+        (stored_ticket for stored_ticket in tickets
+         if stored_ticket.get("id") == ticket_id),
+        None,
+    )
+    if ticket is None:
+        raise TicketValidationError(f"Ticket {ticket_id} was not found.")
+
+    return add_and_save_note(
+        ticket=ticket,
+        author=current_user,
+        message=message,
+    )

@@ -7,6 +7,12 @@ VALID_ROLES = {
     "support_lead",
 }
 
+_current_user = None
+
+
+def get_current_user():
+    return _current_user
+
 
 def register_user():
     users = load_users()
@@ -48,6 +54,7 @@ def register_user():
 
 
 def login_user():
+    global _current_user
     users = load_users()
 
     username = input("Username: ").strip().lower()
@@ -58,8 +65,10 @@ def login_user():
             user["username"] == username
             and user["password"] == password
         ):
+            _current_user = user
             print(f"Welcome, {user['name']}!")
             return user
 
+    _current_user = None
     print("Invalid username or password.")
     return None
