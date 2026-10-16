@@ -93,3 +93,4 @@ from .list_view import list_tickets, get_ticket
 from .workflow import change_status, show_work_queue
 from .report import generate_total_ticket_report
 from .auth import get_current_user, login_user, register_user
+from . understanding_check import understanding_check_menu
