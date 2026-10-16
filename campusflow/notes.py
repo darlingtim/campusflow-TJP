@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from . import read_ticket_file, update_ticket
-from .validate_note import validate_note
+from .validate_note import is_ticket_participant, validate_note
 from .validate_ticket import TicketValidationError
 
 
@@ -77,10 +77,27 @@ def generate_note_id(ticket):
     return f"N{next_number:03d}"
 
 
-def get_visible_notes(ticket, role):
-    """Return only the notes the user's role can view."""
-    if isinstance(role, dict):
-        role = role.get("role")
+def _viewer_identity(viewer):
+    """Return ``(role, user_id, user_name)`` for a user dict or role string."""
+    if isinstance(viewer, dict):
+        return (
+            viewer.get("role"),
+            viewer.get("id"),
+            viewer.get("name") or viewer.get("username"),
+        )
+    return viewer, None, None
+
+
+def get_visible_notes(ticket, viewer):
+    """Return the notes ``viewer`` is allowed to read.
+
+    ``viewer`` is the logged-in user dict, or a bare role string for callers
+    that have no identity to check. Shared notes belong to the ticket creator,
+    the assigned user, and support leads; internal notes stay with support
+    roles. Because a bare role string carries no identity, such a caller only
+    ever sees notes through the support-lead rule.
+    """
+    role, user_id, user_name = _viewer_identity(viewer)
 
     if role not in {
         "student_fellow",
@@ -94,7 +111,13 @@ def get_visible_notes(ticket, role):
     # Convert Note objects to dicts if needed for read consistency
     dict_notes = [n.to_dict() if hasattr(n, "to_dict") else n for n in notes]
 
-    if role in {"support_staff", "support_lead"}:
+    if role == "support_lead":
+        return dict_notes
+
+    if not is_ticket_participant(ticket, user_id, user_name):
+        return []
+
+    if role == "support_staff":
         return dict_notes
 
     return [
