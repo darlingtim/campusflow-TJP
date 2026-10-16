@@ -21,7 +21,9 @@ JSON file.
   results optionally reordered most-urgent-first.
 - Assign tickets to staff members.
 - Add shared or internal notes, restricted to the assigned staff member, the
-  student/fellow who created the ticket, or a support lead.
+  student/fellow who created the ticket, or a support lead. Reading follows the
+  same rule: `get_visible_notes()` shows shared notes only to those same users,
+  and internal notes only to support roles.
 - A student/fellow may include one optional initial note while creating a
   ticket; notes added after creation must contain text.
 - Student/fellow notes are always shared; only support staff and support leads
@@ -52,19 +54,21 @@ JSON file.
 ├── campusflow/
 │   ├── __init__.py             # JSON storage and public package exports
 │   ├── assign.py               # Ticket assignment
-│   ├── auth.py                 # User registration and login
+│   ├── auth.py                 # User registration, login and session state
 │   ├── create_tickets.py       # Ticket model and ticket creation
-│   ├── list_view.py             # Listing and ticket lookup
-│   ├── notes.py                # Ticket follow-up notes
-│   ├── report.py                # Ticket reporting
-│   ├── search.py                # Read-only ticket search
-│   ├── understanding_check.py   # Engineering Understanding Check
-│   ├── validate_ticket.py       # Input validation
-│   └── workflow.py              # Status transitions and work queue
+│   ├── list_view.py            # Listing and ticket lookup
+│   ├── migrate.py              # One-time ticket store migration (decision D2)
+│   ├── notes.py                # Ticket notes
+│   ├── report.py               # Ticket reporting
+│   ├── search.py               # Read-only ticket search
+│   ├── understanding_check.py  # Engineering Understanding Check
+│   ├── validate_note.py        # Note validation and note permissions
+│   ├── validate_ticket.py      # Input validation
+│   └── workflow.py             # Status transitions and work queue
 ├── docs/
 │   ├── ai-learning-log.md
-│   ├── baseline-check.md        # Behaviour of the app before this sprint
-│   └── design-decisions.md      # Decisions and the evidence behind them
+│   ├── baseline-check.md       # Behaviour of the app before this sprint
+│   └── design-decisions.md     # Decisions and the evidence behind them
 ├── tests/
 │   ├── test_assign.py
 │   ├── test_auth.py
@@ -74,9 +78,10 @@ JSON file.
 │   ├── test_list_view.py
 │   ├── test_notes.py
 │   ├── test_report.py
+│   ├── test_robustness.py
 │   ├── test_search.py
-│   ├── test_understanding_check.py
 │   ├── test_storage_integration.py
+│   ├── test_understanding_check.py
 │   └── test_workflow.py
 ├── .github/workflows/tests.yml # Continuous integration workflow
 ├── main.py                      # Interactive CLI entry point
@@ -112,6 +117,45 @@ where `main.py` is started. If the file does not exist, reads return an empty
 ticket list. A valid existing JSON array is expected when creating or updating
 tickets.
 
+## Ticket storage format and migration
+
+Each stored ticket is a JSON object. `affected_users` is a real integer, not a
+string, and `notes` is always present:
+
+```json
+{
+    "id": "T001",
+    "title": "hello",
+    "category": "Network",
+    "urgency": "medium",
+    "affected_users": 12,
+    "priority": "high",
+    "status": "open",
+    "assigned_to": null,
+    "notes": []
+}
+```
+
+The store is loaded strictly. A file that is not valid JSON, is not a list of
+objects, contains a ticket without a usable `id`, or repeats a ticket ID is
+rejected as a whole with `TicketStorageError`, and the file is left untouched,
+so a later save cannot overwrite recoverable data. Missing and zero-byte stores
+are created as an empty list, as before.
+
+Earlier versions stored `affected_users` as a numeric string and had no `notes`
+key. Such a store must be migrated once before it can be loaded:
+
+```bash
+python -m campusflow.migrate            # migrates ./tickets.json
+python -m campusflow.migrate path.json  # migrates another store
+```
+
+The migration copies the original file to `tickets.json.bak` before rewriting,
+converts `affected_users` to an integer, and adds an empty `notes` list. A
+count that is not a whole number is left untouched for the strict loader to
+reject rather than being guessed at. This is the documented migration required
+by decision D2 in `docs/design-decisions.md`.
+
 ## Ticket validation
 
 The following values are accepted:
@@ -119,7 +163,9 @@ The following values are accepted:
 - Title: non-blank text.
 - Category: `Network`, `Hardware`, `Software`, or `Other` (case-insensitive).
 - Urgency: `low`, `medium`, or `high` (case-insensitive).
-- Affected users: a positive whole number.
+- Affected users: a positive whole number. Strings such as `"12"`, floats, and
+  booleans are rejected even when the value looks numeric; the CLI converts the
+  typed value to an integer.
 
 Invalid tickets raise `TicketValidationError` before persistence. Blank staff
 names and invalid or unknown ticket IDs are rejected by their respective

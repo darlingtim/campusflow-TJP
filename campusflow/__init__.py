@@ -4,8 +4,43 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 
+def _validate_stored_tickets(records, ticket_file):
+    """Reject a stored collection that cannot be trusted.
+
+    Requirement E: an invalid store is rejected as a whole rather than
+    partially repaired, so a bad file is never silently reported as empty.
+    """
+    if not isinstance(records, list):
+        raise TicketStorageError(
+            f"{ticket_file} does not contain a list of tickets."
+        )
+
+    seen_ids = set()
+    for record in records:
+        if not isinstance(record, dict):
+            raise TicketStorageError(
+                f"{ticket_file} contains a ticket that is not an object."
+            )
+
+        ticket_id = record.get("id")
+        if not isinstance(ticket_id, str) or not ticket_id.strip():
+            raise TicketStorageError(
+                f"{ticket_file} contains a ticket without a usable id."
+            )
+
+        if ticket_id in seen_ids:
+            raise TicketStorageError(
+                f"{ticket_file} contains the duplicate ticket id {ticket_id}."
+            )
+        seen_ids.add(ticket_id)
+
+
 def _load_tickets(ticket_file: str = "./tickets.json") -> List[Dict[str, Any]]:
-    """Load tickets, creating an empty store when it does not exist or is empty."""
+    """Load tickets, creating an empty store when it does not exist or is empty.
+
+    A corrupt or invalid store raises ``TicketStorageError`` instead of
+    loading as empty, so the next save cannot overwrite recoverable data.
+    """
     os.makedirs(os.path.dirname(ticket_file) or ".", exist_ok=True)
 
     if not os.path.exists(ticket_file) or os.path.getsize(ticket_file) == 0:
@@ -15,9 +50,14 @@ def _load_tickets(ticket_file: str = "./tickets.json") -> List[Dict[str, Any]]:
 
     try:
         with open(ticket_file, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except json.JSONDecodeError:
-        return []
+            records = json.load(f)
+    except json.JSONDecodeError as error:
+        raise TicketStorageError(
+            f"{ticket_file} is not valid JSON, so no tickets were loaded: {error}"
+        ) from error
+
+    _validate_stored_tickets(records, ticket_file)
+    return records
 
 
 def save_ticket(ticket_data: Dict[str, Any]) -> str:
@@ -85,7 +125,11 @@ def save_users(users: List[Dict[str, Any]]) -> None:
 
 # --- Package Exports ---
 # Core validation and models imported first to prevent circular imports
-from .validate_ticket import validate_ticket, TicketValidationError
+from .validate_ticket import (
+    validate_ticket,
+    TicketStorageError,
+    TicketValidationError,
+)
 from .create_tickets import Ticket, raise_ticket, generate_ticket_id
 from .notes import Note, add_note, get_visible_notes, generate_note_id
 from .assign import assign_ticket
