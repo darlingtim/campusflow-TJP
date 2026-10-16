@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 
 from . import read_ticket_file, save_ticket, validate_ticket, TicketValidationError
+from .notes import Note, generate_note_id
+
 
 class Ticket:
     def __init__(
@@ -11,7 +13,9 @@ class Ticket:
         urgency,
         affected_users,
         created_by=None,
+        created_by_name=None,
         initial_note=None,
+        creator_role="student_fellow",
     ):
         self.id = ticket_id
         self.title = title
@@ -35,44 +39,50 @@ class Ticket:
                 raise TicketValidationError(
                     "A ticket creator is required for an initial note."
                 )
-            from .notes import add_ticket_note
 
-            add_ticket_note(
-                self,
-                author=created_by,
-                role="student_fellow",
-                message=initial_note,
+            author_display = (
+                created_by_name.strip()
+                if isinstance(created_by_name, str) and created_by_name.strip()
+                else created_by
+            )
+
+            # Store domain Note instance
+            self.notes.append(
+                Note(
+                    note_id=generate_note_id(self),
+                    author=author_display,
+                    role=creator_role,
+                    message=initial_note.strip(),
+                    visibility="shared",
+                    author_id=created_by,
+                )
             )
 
     def calculate_priority(self):
-        """Determine the priority of the ticket based on urgency and affected users."""
+        """Determine ticket priority based on urgency and affected users."""
         try:
-            affected_users = int(self.affected_users)
+            affected = int(self.affected_users)
         except (TypeError, ValueError):
             return "low"
 
-        if self.urgency == "high" and affected_users >= 10:
+        if self.urgency == "high" and affected >= 10:
             return "critical"
-
-        elif self.urgency == "high" or affected_users >= 10:
+        elif self.urgency == "high" or affected >= 10:
             return "high"
-
-        elif self.urgency == "medium" or affected_users >= 3:
+        elif self.urgency == "medium" or affected >= 3:
             return "medium"
-
         else:
             return "low"
 
     def add_note(self, note):
         """Add a note to the ticket."""
         if self.status == "resolved":
-            raise ValueError("Cannot add notes to a resolved ticket.")
+            raise TicketValidationError("Cannot add notes to a resolved ticket.")
 
         self.notes.append(note)
 
-
     def to_dict(self):
-        ticket_data = {
+        return {
             "id": self.id,
             "title": self.title,
             "category": self.category,
@@ -88,55 +98,67 @@ class Ticket:
                 for note in self.notes
             ],
         }
-        if self.created_by is not None:
-            ticket_data["created_by"] = self.created_by
-        return ticket_data
 
 
 def raise_ticket(current_user=None, initial_note=None):
     """Function to raise a new ticket."""
-    title = input("Enter ticket title: ")
-    category = input("Enter category (Network, Hardware, Software, Other): ")
-    urgency = input("Enter urgency (low/medium/high): ").lower()
-    affected_users = input("Enter number of affected users: ")
-    ticket_id =generate_ticket_id()
+    title = input("Enter ticket title: ").strip()
+    category = input("Enter category (Network, Hardware, Software, Other): ").strip()
+    urgency = input("Enter urgency (low/medium/high): ").strip().lower()
+    affected_users = input("Enter number of affected users: ").strip()
+
+    if initial_note is None:
+        initial_note = input("Enter an optional note (press Enter to skip): ").strip()
+
+    ticket_id = generate_ticket_id()
 
     created_by = None
+    created_by_name = None
+    creator_role = "student_fellow"
+
     if current_user is not None:
         if not isinstance(current_user, dict) or not current_user.get("id"):
-            raise ValueError("A valid logged-in user is required.")
+            raise TicketValidationError("A valid logged-in user is required.")
         created_by = current_user["id"]
+        created_by_name = current_user.get("name") or current_user.get("username")
+        creator_role = current_user.get("role", "student_fellow")
 
     ticket = Ticket(
-        ticket_id,
-        title,
-        category,
-        urgency,
-        affected_users,
+        ticket_id=ticket_id,
+        title=title,
+        category=category,
+        urgency=urgency,
+        affected_users=affected_users,
         created_by=created_by,
-        initial_note=initial_note,
+        created_by_name=created_by_name,
+        initial_note=initial_note if initial_note else None,
+        creator_role=creator_role,
     )
-    
-    errors = validate_ticket(ticket)
 
+    errors = validate_ticket(ticket)
     if errors:
         raise TicketValidationError("\n".join(errors))
-        
+
     try:
         save_ticket(ticket.to_dict())
-        return print(f"\nTicket {ticket.id} has been raised and submitted successfully!")
-
+        print(f"\nTicket {ticket.id} has been raised and submitted successfully!")
+        return ticket
     except Exception as e:
-        return print(f"Error saving ticket: {e}")
-
+        print(f"Error saving ticket: {e}")
+        return None
 
 
 def generate_ticket_id():
     """Generate a unique ticket ID for tickets being created."""
     tickets = read_ticket_file()
 
-    if not tickets:
-        return "T001"
+    existing_ids = [
+        int(ticket["id"][1:])
+        for ticket in tickets
+        if isinstance(ticket.get("id"), str)
+        and ticket["id"].startswith("T")
+        and ticket["id"][1:].isdigit()
+    ]
 
-    last_id = max(int(ticket["id"][1:]) for ticket in tickets)
+    last_id = max(existing_ids, default=0)
     return f"T{last_id + 1:03d}"

@@ -27,7 +27,10 @@ def temporary_ticket_store():
 class TestTicketStorageIntegration(unittest.TestCase):
     def test_create_assign_lookup_and_read_round_trip(self):
         with temporary_ticket_store():
-            with patch("builtins.input", side_effect=["Wi-Fi outage", "Network", "high", "12"]):
+            with patch(
+                "builtins.input",
+                side_effect=["Wi-Fi outage", "Network", "high", "12", ""],
+            ):
                 raise_ticket()
 
             with patch("builtins.input", side_effect=["T001", "Ada"]):
