@@ -4,9 +4,10 @@
         "title": "hello",
         "category": "Network",
         "urgency": "medium",
-        "affected_users": "12",
+        "affected_users": 12,
         "priority": "high",
         "status": "open",
-        "assigned_to": null
+        "assigned_to": null,
+        "notes": []
     }
 ]

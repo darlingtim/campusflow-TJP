@@ -94,7 +94,7 @@ class TestTicket(unittest.TestCase):
         self.assertIn("Affected users must be a valid whole number.", validate_ticket(ticket))
 
     def test_validation_reports_all_invalid_fields(self):
-        ticket = Ticket("T001", " ", "Unknown", "urgent", "0")
+        ticket = Ticket("T001", " ", "Unknown", "urgent", 0)
         errors = validate_ticket(ticket)
         self.assertEqual(len(errors), 4)
         self.assertIn("Ticket title cannot be empty.", errors)
@@ -103,8 +103,35 @@ class TestTicket(unittest.TestCase):
         self.assertIn("Affected users must be greater than zero.", errors)
 
     def test_validation_accepts_case_and_whitespace(self):
-        ticket = Ticket("T001", "Title", " network ", "HIGH", " 3 ")
+        ticket = Ticket("T001", "Title", " network ", "HIGH", 3)
         self.assertEqual(validate_ticket(ticket), [])
+
+    def test_affected_users_must_be_a_real_integer(self):
+        # Requirement A: reject strings, floats and bools masquerading as
+        # integers, even when the value looks numeric.
+        for value in ("12", " 3 ", 3.9, 3.0, True, False, None):
+            with self.subTest(value=value):
+                ticket = Ticket("T001", "Title", "Network", "high", value)
+
+                self.assertIn(
+                    "Affected users must be a valid whole number.",
+                    validate_ticket(ticket),
+                )
+
+    def test_affected_users_accepts_a_positive_integer(self):
+        ticket = Ticket("T001", "Title", "Network", "high", 12)
+
+        self.assertEqual(validate_ticket(ticket), [])
+
+    def test_zero_and_negative_counts_are_rejected(self):
+        for value in (0, -5):
+            with self.subTest(value=value):
+                ticket = Ticket("T001", "Title", "Network", "high", value)
+
+                self.assertIn(
+                    "Affected users must be greater than zero.",
+                    validate_ticket(ticket),
+                )
 
     def test_generate_ticket_id_uses_highest_existing_id(self):
         tickets = [{"id": "T002"}, {"id": "T010"}, {"id": "T003"}]
