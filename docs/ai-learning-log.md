@@ -48,3 +48,99 @@ What I can now explain without AI: raise doesn’t print anything. It stops the 
 
 ### Note on AI use
 The AI wrote the core logic in workflow.py (apply_status_change, reopen_ticket, get_work_queue) and the tests in test_workflow.py. I rewrote change_status to fit our team's menu and storage, found two errors by running the program, and worked with the AI to fix them. I ran every test, read the failures, and checked the results myself.
+
+## Fellow: Okoh Daniel Oche — Engineer B: Search, Reporting and CLI (issue #49)
+
+### Interaction #1 — Turning working code into commits
+
+Problem: My search feature, its tests and the documentation were finished and passing, but they were sitting uncommitted in the working tree. I did not know how to turn them into commits, or how many commits were expected.
+
+My initial understanding: I thought committing meant one `git add .` followed by one message summarising everything I had done that day. I did not know that a commit carries an author, so git needs to know who I am before it will create one. I also did not realise the sprint scores the number of focused commits, so one large commit would have quietly lost marks.
+
+Prompt to AI: "How do i commit it?" — followed by "I'm confused on what to do?", because the first answer covered more ground than I could act on at once.
+
+Useful AI guidance: A commit records an author, so `user.name` and `user.email` must be set or git refuses outright. The sprint requires at least two focused commits per engineer, so the work should be split by idea — documentation, then feature, then tests — rather than bundled. I was also shown how to inspect the tree before staging, and told the tracked `tickets.json` must not be swept into a commit.
+
+My independent experiment/test: In a throwaway repository I tried to commit with the identity deliberately blank, then repeated the identical commit with an identity supplied. This had nothing to do with CampusFlow — I wanted to see the rule for myself rather than take it on trust.
+
+Verification source or result: With no identity the commit was refused: `Author identity unknown / *** Please tell me who you are.` With an identity the same command produced `[master (root-commit) d91eaab] test / 1 file changed, 1 insertion(+)`. Same repository, same file, same message — the only change was the identity. I then checked my own repository and found `user.name = Symplythatguy` and `user.email = danielbriar369@gmail.com` already set.
+
+Decision: Accepted, and acted on. I committed in three slices — documentation, then the feature, then its tests — and confirmed with `git log --oneline` that each commit described one idea and that `tickets.json` was never staged.
+
+Which test guards this learning: None — a commit is not testable. The guard is the history itself: `git log --oneline main..HEAD` reads as a sequence of separate decisions, and that is what a reviewer sees.
+
+Related file/commit: 88a4e82 (docs), 2fb4395 (feat), f0a210d (test)
+
+What I can now explain without AI: A commit is a permanent record that names its author, so git will not make one until it knows who I am — and that identity is configuration, not code. One commit should carry one idea, which is why a feature, its tests and its documentation belong in separate commits with separate messages. Splitting the work this way is not cosmetic: a reviewer reading my branch can see what changed and why, one decision at a time, and can revert one idea without disturbing the others.
+
+### Interaction #2 — The push failed, but reading the same repository worked
+
+Problem: `git push` failed with `fatal: could not read Username for 'https://github.com': No such device or address`, even though I had been fetching from and reading that same repository all along.
+
+My initial understanding: I thought pushing was simply sending my commits up to GitHub. If I could read the repository, publishing to it felt like the same kind of operation, so a failure made no sense to me. I did not know that reading and writing are authorised separately, and I assumed my GitHub account password would work if I was asked for one.
+
+Prompt to AI: How do I push this branch? — then, after the failure, what the error actually meant.
+
+Useful AI guidance: Reading a public repository requires no credentials at all, but pushing proves identity, so it does. Git first looks for a stored credential; finding none it tries to prompt for a username, and with no terminal attached there is nobody to ask — hence "No such device or address". I was told a GitHub account password will no longer work for this, and that either a Personal Access Token or an SSH key is required. I was also told not to paste a token into the chat, because it would end up in the transcript.
+
+My independent experiment/test: I inspected both places git can find credentials on this machine, then reproduced the failure deliberately with prompting switched off, and compared that with a read of the same remote.
+
+Verification source or result: `git config --show-origin --get-all credential.helper` returned nothing configured. `ls ~/.ssh/id_*` found no key. Then, with prompting disabled:
+
+```text
+$ GIT_TERMINAL_PROMPT=0 git push --dry-run origin feat/49-search-and-insights
+fatal: could not read Username for 'https://github.com': terminal prompts disabled
+
+$ GIT_TERMINAL_PROMPT=0 git ls-remote --heads origin feat/49-search-and-insights
+f0a210dbe59d2a249ac607ea7a5525b9e9ee23f7	refs/heads/feat/49-search-and-insights
+```
+
+The read returned the branch tip with no credentials at all, while the write could not proceed. That isolated the problem to authentication on write — not the branch, not the network, and not GitHub being down.
+
+Decision: Changed my approach. I ran the push from my own terminal, where git can prompt, and it succeeded; `git ls-remote` now reports `f0a210d`, the same commit as my local HEAD. I recorded SSH keys as the longer-term fix so I stop re-authenticating on every push.
+
+Which test guards this learning: None — it is environment configuration, not application behaviour. What guards it is that the branch on the remote matches my local HEAD, which I check with `git rev-parse HEAD` against `git ls-remote`.
+
+Related file/commit: branch `feat/49-search-and-insights`, remote tip f0a210d
+
+What I can now explain without AI: Reading and writing to a remote are authorised separately. A public repository can be cloned and fetched by anyone, which is why my reads always worked, but publishing commits has to know who is doing it. Git needs either a stored credential or a terminal it can ask, and I had neither — so the error was about proving identity, not about the code I was pushing. I also understand why the password prompt would not have helped: GitHub no longer accepts account passwords for git operations.
+
+### Interaction #3 — The test was wrong, not the code
+
+Problem: I added a test for acceptance case 11, asserting that report counts agree with a known fixture after one ticket is resolved and another is resolved and reopened. It errored on the first line instead of reporting a count mismatch.
+
+My initial understanding: A test that fails means the code under test is broken. I expected the traceback to lead me to a bug in the report or the workflow, and I was ready to change the application.
+
+Prompt to AI: I asked for a test proving the report counts follow the CURRENT status after a ticket is resolved and another is reopened.
+
+Useful AI guidance: None of it was about the counts. The test the AI wrote built its fixture with unassigned tickets.
+
+My independent experiment/test: Instead of editing the application, I read the traceback, then reproduced the rejection directly to see whether the behaviour was deliberate.
+
+Verification source or result:
+
+```text
+ValueError: Ticket T001 must be assigned before status can be change.
+```
+
+Reproducing it on its own:
+
+```text
+$ python3 -c "from campusflow.workflow import apply_status_change; ..."
+rejected: Ticket T001 must be assigned before its status can be changed.
+status after the attempt: open
+```
+
+The application refused the change and left the ticket untouched. That is required behaviour — the sprint explicitly forbids an unassigned ticket from starting — so the code was correct and my test's fixture was not.
+
+Decision: Rejected the AI's test as written. I changed the fixture to assign the tickets it intended to progress, and the test then passed. I did not touch the application, because there was nothing wrong with it. The traceback also exposed a typo in the user-facing message ("can be change"), which I fixed separately and pinned with its own test.
+
+Which test guards this learning: `test_report_counts_agree_with_a_known_fixture_after_resolve_and_reopen` in tests/test_report.py, which now assigns its tickets; and `test_unassigned_ticket_cannot_start` in tests/test_workflow.py, which already covered the rule my fixture had violated.
+
+Related file/commit: tests/test_report.py (52bcb1a), campusflow/workflow.py (28835ec)
+
+What I can now explain without AI: A failing test is evidence, not a verdict. It tells me that my expectation and the code disagree — not which of the two is wrong. Here the traceback named a rule that the sprint requires on purpose, so the disagreement was in my fixture. Reading the failure before editing the code is what stopped me from "fixing" correct behaviour and breaking a requirement. It also turned up a real defect that the test had been standing on top of.
+
+### Note on AI use
+
+The AI wrote the first draft of the search, report and understanding-check code and their tests, and drafted this log from evidence recorded during the session. I ran every command quoted above myself, read the output, chose the decision in each cycle, and corrected the parts that did not match what I actually thought or did. The decisions recorded as changed or rejected — the push approach in Interaction #2 and the test fixture in Interaction #3 — were rejected after reading evidence, not assumed.

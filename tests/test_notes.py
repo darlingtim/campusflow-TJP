@@ -7,21 +7,59 @@ from unittest.mock import patch
 from campusflow.create_tickets import Ticket
 from campusflow.notes import (
     Note,
-    add_and_save_note,
-    add_ticket_note,
+    add_note,
     generate_note_id,
     get_visible_notes,
 )
+from campusflow.validate_note import validate_note
 from campusflow.validate_ticket import TicketValidationError
+
+
+def add_ticket_note(ticket, author, role=None, message=None, visibility=None):
+    user = author if isinstance(author, dict) else {
+        "name": author,
+        "role": role,
+    }
+    if isinstance(author, dict) and message is None:
+        message = role
+    return add_note(
+        ticket=ticket,
+        user=user,
+        message=message,
+        visibility=visibility,
+    )
 
 
 def make_ticket(status="open"):
     ticket = Ticket("T001", "Wi-Fi outage", "Network", "high", "3")
     ticket.status = status
+    ticket.assigned_to = "Ada"
     return ticket
 
 
 class TestNote(unittest.TestCase):
+    def test_validate_note_normalizes_authenticated_user(self):
+        ticket = make_ticket()
+        user = {
+            "id": "U001",
+            "name": "Ada",
+            "role": "support_staff",
+        }
+
+        with patch("builtins.input", return_value="1"):
+            validated = validate_note(ticket, user, "Update")
+
+        self.assertEqual(
+            validated,
+            {
+                "author": "Ada",
+                "author_id": "U001",
+                "role": "support_staff",
+                "message": "Update",
+                "visibility": "shared",
+            },
+        )
+
     def test_note_strips_message_and_serializes_all_fields(self):
         note = Note("N001", "Ada", "support_staff", "  Investigating  ", "internal")
 
@@ -55,12 +93,17 @@ class TestNote(unittest.TestCase):
         for role in ("student_fellow", "support_staff", "support_lead"):
             with self.subTest(role=role):
                 ticket = make_ticket()
-                note = add_ticket_note(ticket, "Ada", role, "  Update  ")
+                ticket.assigned_to = "Ada"
+                if role == "student_fellow":
+                    note = add_ticket_note(ticket, "Ada", role, "  Update  ")
+                else:
+                    with patch("builtins.input", return_value="1"):
+                        note = add_ticket_note(ticket, "Ada", role, "  Update  ")
 
                 self.assertEqual(note["id"], "N001")
                 self.assertEqual(note["message"], "Update")
                 self.assertEqual(note["visibility"], "shared")
-                self.assertEqual(ticket.notes, [note])
+                self.assertEqual(ticket.to_dict()["notes"], [note])
 
     def test_authenticated_user_can_add_note_and_note_keeps_user_id(self):
         ticket = make_ticket()
@@ -70,24 +113,100 @@ class TestNote(unittest.TestCase):
             "role": "support_staff",
         }
 
-        note = add_ticket_note(ticket, user, "Investigating")
+        with patch("builtins.input", return_value="1"):
+            note = add_ticket_note(ticket, user, "Investigating")
 
         self.assertEqual(note["author"], "Ada Lovelace")
         self.assertEqual(note["author_id"], "U001")
         self.assertEqual(note["role"], "support_staff")
 
-    def test_add_internal_note_requires_support_role(self):
+    def test_non_lead_note_owner_must_be_assigned_to_ticket(self):
+        for assigned_to, author in ((None, "Ada"), ("Bea", "Ada")):
+            with self.subTest(assigned_to=assigned_to, author=author):
+                ticket = make_ticket()
+                ticket.assigned_to = assigned_to
+
+                with self.assertRaisesRegex(
+                    TicketValidationError,
+                    "Only the assigned staff member can add a note.",
+                ):
+                    with patch("builtins.input", return_value="1"):
+                        add_ticket_note(
+                            ticket,
+                            author,
+                            "support_staff",
+                            "Update",
+                        )
+
+                self.assertEqual(ticket.notes, [])
+
+    def test_added_note_cannot_be_empty(self):
+        ticket = make_ticket()
+
         with self.assertRaisesRegex(
             TicketValidationError,
-            "Only support staff and support leads can add internal notes.",
+            "Note cannot be empty.",
         ):
             add_ticket_note(
-                make_ticket(),
-                "Student",
-                "student_fellow",
-                "Staff-only update",
-                visibility="internal",
+                ticket,
+                "Ada",
+                "support_staff",
+                "  ",
+                visibility="shared",
             )
+
+        self.assertEqual(ticket.notes, [])
+
+    def test_support_lead_can_add_note_to_unassigned_ticket(self):
+        ticket = make_ticket()
+
+        with patch("builtins.input", return_value="1"):
+            note = add_ticket_note(ticket, "Lead", "support_lead", "Update")
+
+        self.assertEqual(ticket.to_dict()["notes"], [note])
+
+    def test_support_note_prompts_for_internal_visibility(self):
+        ticket = make_ticket()
+
+        with patch("builtins.input", side_effect=["invalid", "2"]):
+            note = add_ticket_note(ticket, "Ada", "support_staff", "Internal update")
+
+        self.assertEqual(note["visibility"], "internal")
+
+    def test_student_fellow_can_add_note_to_ticket_they_created(self):
+        ticket = make_ticket()
+        ticket.assigned_to = None
+        ticket.created_by = "Ada"
+
+        note = add_ticket_note(ticket, "Ada", "student_fellow", "More details")
+
+        self.assertEqual(ticket.to_dict()["notes"], [note])
+
+    def test_student_fellow_cannot_add_note_to_ticket_created_by_someone_else(self):
+        ticket = make_ticket()
+        ticket.assigned_to = None
+        ticket.created_by = "Bea"
+
+        with self.assertRaisesRegex(
+            TicketValidationError,
+            "Only the ticket creator or assigned staff member can add a note.",
+        ):
+            add_ticket_note(ticket, "Ada", "student_fellow", "More details")
+
+        self.assertEqual(ticket.notes, [])
+
+    def test_student_fellow_note_visibility_is_always_shared(self):
+        ticket = make_ticket()
+
+        note = add_ticket_note(
+            ticket,
+            "Ada",
+            "student_fellow",
+            "Student update",
+            visibility="internal",
+        )
+
+        self.assertEqual(note["visibility"], "shared")
 
     def test_add_note_rejects_invalid_role_message_visibility_and_resolved_ticket(self):
         cases = [
@@ -116,7 +235,8 @@ class TestNote(unittest.TestCase):
 
     def test_get_visible_notes_hides_internal_notes_from_student(self):
         ticket = make_ticket()
-        shared = add_ticket_note(ticket, "Ada", "support_staff", "Shared update")
+        with patch("builtins.input", return_value="1"):
+            shared = add_ticket_note(ticket, "Ada", "support_staff", "Shared update")
         internal = add_ticket_note(
             ticket,
             "Ada",
@@ -138,12 +258,18 @@ class TestNote(unittest.TestCase):
     def test_dictionary_ticket_is_supported_and_missing_notes_are_initialized(self):
         ticket = {"id": "T001", "status": "open"}
 
-        note = add_ticket_note(ticket, "Ada", "support_lead", "Update")
+        note = add_ticket_note(
+            ticket,
+            "Ada",
+            "support_lead",
+            "Update",
+            visibility="shared",
+        )
 
         self.assertEqual(ticket["notes"], [note])
         self.assertEqual(get_visible_notes(ticket, "support_lead"), [note])
 
-    def test_add_and_save_note_persists_note_added_to_ticket_object(self):
+    def test_save_note_persists_note_added_to_ticket_object(self):
         ticket = make_ticket()
 
         with tempfile.TemporaryDirectory() as directory:
@@ -153,19 +279,19 @@ class TestNote(unittest.TestCase):
                 with open("tickets.json", "w") as tickets_file:
                     json.dump([ticket.to_dict()], tickets_file)
 
-                note = add_and_save_note(
-                    ticket,
-                    "Ada",
-                    "support_staff",
-                    "Persisted object update",
-                )
+                with patch("builtins.input", return_value="1"):
+                    note = add_note(
+                        ticket=ticket,
+                        user={"name": "Ada", "role": "support_staff"},
+                        message="Persisted object update",
+                    )
 
                 with open("tickets.json") as tickets_file:
                     stored_tickets = json.load(tickets_file)
             finally:
                 os.chdir(old_directory)
 
-        self.assertEqual(ticket.notes, [note])
+        self.assertEqual(ticket.to_dict()["notes"], [note])
         self.assertEqual(len(stored_tickets), 1)
         self.assertEqual(stored_tickets[0]["notes"], [note])
 
@@ -183,14 +309,14 @@ class TestNote(unittest.TestCase):
         note = Note("N001", "Ada", "support_staff", "Direct update")
 
         with self.assertRaisesRegex(
-            ValueError,
+            TicketValidationError,
             "Cannot add notes to a resolved ticket.",
         ):
             ticket.add_note(note)
 
         self.assertEqual(ticket.notes, [])
 
-    def test_add_and_save_note_updates_existing_ticket_without_appending_duplicate(self):
+    def test_save_note_updates_existing_ticket_without_appending_duplicate(self):
         ticket_data = make_ticket().to_dict()
 
         with tempfile.TemporaryDirectory() as directory:
@@ -200,12 +326,12 @@ class TestNote(unittest.TestCase):
                 with open("tickets.json", "w") as tickets_file:
                     json.dump([ticket_data], tickets_file)
 
-                note = add_and_save_note(
-                    ticket_data,
-                    "Ada",
-                    "support_staff",
-                    "Persisted update",
-                )
+                with patch("builtins.input", return_value="1"):
+                    note = add_note(
+                        ticket=ticket_data,
+                        user={"name": "Ada", "role": "support_staff"},
+                        message="Persisted update",
+                    )
 
                 with open("tickets.json") as tickets_file:
                     stored_tickets = json.load(tickets_file)
@@ -215,7 +341,7 @@ class TestNote(unittest.TestCase):
         self.assertEqual(len(stored_tickets), 1)
         self.assertEqual(stored_tickets[0]["notes"], [note])
 
-    def test_add_and_save_note_reports_persistence_failure(self):
+    def test_save_note_reports_persistence_failure(self):
         ticket = make_ticket()
 
         with patch("campusflow.notes.update_ticket", return_value="update failed"):
@@ -223,7 +349,31 @@ class TestNote(unittest.TestCase):
                 TicketValidationError,
                 "Unable to save notes for ticket T001.",
             ):
-                add_and_save_note(ticket, "Ada", "support_staff", "Update")
+                add_note(
+                    ticket=ticket,
+                    user={"name": "Ada", "role": "support_staff"},
+                    message="Update",
+                    visibility="shared",
+                )
+
+    def test_add_note_prompts_for_details_and_saves_selected_ticket(self):
+        ticket = make_ticket()
+
+        with patch("campusflow.notes.read_ticket_file", return_value=[ticket.to_dict()]):
+            with patch("campusflow.auth.get_current_user", return_value={
+                "id": "U001",
+                "name": "Ada",
+                "role": "support_staff",
+            }):
+                with patch("builtins.input", side_effect=["T001", "Update", "1"]):
+                    with patch(
+                        "campusflow.notes.update_ticket",
+                        return_value="update success",
+                    ):
+                        note = add_note()
+
+        self.assertEqual(note["message"], "Update")
+        self.assertEqual(note["visibility"], "shared")
 
 
 if __name__ == "__main__":

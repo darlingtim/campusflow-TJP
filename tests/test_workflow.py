@@ -19,6 +19,18 @@ class TestWorkflow(unittest.TestCase):
             apply_status_change(tickets, "T001", "in_progress")
         self.assertEqual(tickets[0]["status"], "open")  # proves nothing changed
 
+    def test_unassigned_rejection_message_is_readable(self):
+        # This message is the user interface for the rule above, so its
+        # wording is pinned rather than left to drift.
+        tickets = [make_ticket("T001")]
+        with self.assertRaises(ValueError) as raised:
+            apply_status_change(tickets, "T001", "in progress")
+
+        self.assertEqual(
+            str(raised.exception),
+            "Ticket T001 must be assigned before its status can be changed.",
+        )
+
     def test_assigned_ticket_full_lifecycle(self):
         tickets = [make_ticket("T001", assigned_to="Ada")]
         apply_status_change(tickets, "T001", "in_progress")

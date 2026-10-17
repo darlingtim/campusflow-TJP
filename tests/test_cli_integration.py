@@ -43,6 +43,14 @@ class TestMainMenu(unittest.TestCase):
         printed.assert_any_call("    Ticket category cannot be empty.")
         printed.assert_any_call("\nYou have exited the application.")
 
+    def test_understanding_check_option_runs_the_check_then_exits(self):
+        with patch("builtins.input", side_effect=["8", "9"]):
+            with patch("main.understanding_check_menu") as check:
+                with patch("builtins.print"):
+                    main.main()
+
+        check.assert_called_once_with()
+
 
 if __name__ == "__main__":
     unittest.main()
