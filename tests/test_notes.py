@@ -38,6 +38,20 @@ def make_ticket(status="open"):
 
 
 class TestNote(unittest.TestCase):
+    def setUp(self):
+        # Note saving writes to ./tickets.json, so run every test in a
+        # throwaway directory instead of the repository root. Seed it with the
+        # ticket that make_ticket() and the fixtures below work against.
+        self._original_directory = os.getcwd()
+        self._temporary_directory = tempfile.TemporaryDirectory()
+        os.chdir(self._temporary_directory.name)
+        with open("tickets.json", "w", encoding="utf-8") as tickets_file:
+            json.dump([{"id": "T001", "status": "open"}], tickets_file)
+
+    def tearDown(self):
+        os.chdir(self._original_directory)
+        self._temporary_directory.cleanup()
+
     def test_validate_note_normalizes_authenticated_user(self):
         ticket = make_ticket()
         user = {
@@ -107,6 +121,7 @@ class TestNote(unittest.TestCase):
 
     def test_authenticated_user_can_add_note_and_note_keeps_user_id(self):
         ticket = make_ticket()
+        ticket.assigned_to = "Ada Lovelace"
         user = {
             "id": "U001",
             "name": "Ada Lovelace",
@@ -235,6 +250,10 @@ class TestNote(unittest.TestCase):
 
     def test_get_visible_notes_hides_internal_notes_from_student(self):
         ticket = make_ticket()
+        ticket.created_by = "U001"
+        creator = {"id": "U001", "name": "Charles", "role": "student_fellow"}
+        assigned_staff = {"name": "Ada", "role": "support_staff"}
+
         with patch("builtins.input", return_value="1"):
             shared = add_ticket_note(ticket, "Ada", "support_staff", "Shared update")
         internal = add_ticket_note(
@@ -245,11 +264,41 @@ class TestNote(unittest.TestCase):
             visibility="internal",
         )
 
-        self.assertEqual(get_visible_notes(ticket, "student_fellow"), [shared])
+        self.assertEqual(get_visible_notes(ticket, creator), [shared])
         self.assertEqual(
-            get_visible_notes(ticket, "support_staff"),
+            get_visible_notes(ticket, assigned_staff),
             [shared, internal],
         )
+
+    def test_get_visible_notes_denies_users_outside_the_ticket(self):
+        ticket = make_ticket()
+        ticket.created_by = "U001"
+        unrelated_student = {"id": "U003", "name": "John", "role": "student_fellow"}
+        unrelated_staff = {"id": "U004", "name": "Bob", "role": "support_staff"}
+
+        with patch("builtins.input", return_value="1"):
+            add_ticket_note(ticket, "Ada", "support_staff", "Shared update")
+
+        self.assertEqual(get_visible_notes(ticket, unrelated_student), [])
+        self.assertEqual(get_visible_notes(ticket, unrelated_staff), [])
+
+    def test_shared_first_name_does_not_authorize_note_access(self):
+        ticket = make_ticket()
+        ticket.assigned_to = "Ada Lovelace"
+        namesake = {"id": "U007", "name": "Ada", "role": "support_staff"}
+
+        with self.assertRaisesRegex(
+            TicketValidationError,
+            "Only the assigned staff member can add a note.",
+        ):
+            with patch("builtins.input", return_value="1"):
+                add_note(
+                    ticket=ticket,
+                    user=namesake,
+                    message="Update",
+                )
+
+        self.assertEqual(get_visible_notes(ticket, namesake), [])
 
     def test_get_visible_notes_rejects_unknown_role(self):
         with self.assertRaisesRegex(PermissionError, "Unauthorized user role."):

@@ -23,9 +23,8 @@ from campusflow.validate_ticket import validate_ticket
 class TestAffectedUsersTypeValidation(unittest.TestCase):
     """Engineer B's bug-hunter test, aimed at Engineer A's module."""
 
-    @unittest.expectedFailure
     def test_numeric_string_count_is_not_rejected_by_validation(self):
-        """A numeric string passes validation, contradicting Requirement A.
+        """A numeric string must not pass validation (Requirement A).
 
         Initial state : no ticket exists.
         Input         : a Ticket whose affected_users is the string "12".
@@ -33,21 +32,26 @@ class TestAffectedUsersTypeValidation(unittest.TestCase):
                         affected_users "must be a strictly positive integer"
                         and to "reject floats, strings and bools masquerading
                         as integers". A string is not an integer.
-        Actual        : validate_ticket returns no errors. The check is
+        Actual when filed: validate_ticket returned no errors. The check was
                         str(value).isdigit(), and "12".isdigit() is True, so
-                        the string is accepted. Ticket.calculate_priority then
-                        converts it with int() and scores the ticket "high".
+                        the string was accepted. Ticket.calculate_priority
+                        then converted it with int() and scored the ticket
+                        "high".
+        Actual now    : validate_ticket rejects the string. The check requires
+                        a real int and excludes bool, and the store is migrated
+                        so no ticket is left holding a numeric string.
         Test name     : test_numeric_string_count_is_not_rejected_by_validation
-        Code change   : none. The fix belongs in validate_ticket.py, which is
-                        Engineer A's module, and must land after the
-                        tickets.json migration -- see docs/design-decisions.md
-                        D2.
+        Code change   : validate_ticket.py now tests isinstance(affected_users,
+                        int) and rejects bool and numeric strings;
+                        campusflow/migrate.py converts a legacy numeric string
+                        on disk; and the strict loader rejects a store that
+                        still holds one. The @unittest.expectedFailure
+                        decorator this test was filed with has been removed, as
+                        the docstring below advised.
 
         This matters beyond the type check: the repository's own tickets.json
-        ships "affected_users": "12", so today the sample data passes only
-        because of this hole. When Engineer A requires an actual int, this
-        test starts passing, which unittest reports as an unexpected success.
-        Remove the decorator at that point.
+        shipped "affected_users": "12", so the sample data passed only because
+        of this hole.
         """
         ticket = Ticket("T900", "Title", "Network", "medium", "12")
 

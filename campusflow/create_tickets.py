@@ -105,7 +105,14 @@ def raise_ticket(current_user=None, initial_note=None):
     title = input("Enter ticket title: ").strip()
     category = input("Enter category (Network, Hardware, Software, Other): ").strip()
     urgency = input("Enter urgency (low/medium/high): ").strip().lower()
-    affected_users = input("Enter number of affected users: ").strip()
+    affected_users_text = input("Enter number of affected users: ").strip()
+
+    # The stored format requires a real integer, so the typed value is
+    # converted here rather than validated as a string.
+    try:
+        affected_users = int(affected_users_text)
+    except ValueError:
+        raise TicketValidationError("Affected users must be a valid whole number.")
 
     if initial_note is None:
         initial_note = input("Enter an optional note (press Enter to skip): ").strip()
