@@ -32,6 +32,7 @@ JSON file.
   - `open` -> `in progress` -> `resolved`
   - A resolved ticket can be explicitly reopened to `open`.
 - Require an assignee before a ticket can move to `in progress`.
+- Generate status, priority and category reports.
 - Generate status and priority reports.
 - Run an in-app Engineering Understanding Check on the application's own
   behaviour.
@@ -39,7 +40,7 @@ JSON file.
 
 ## Requirements
 
-- Python 3.11, 3.12, or 3.13
+- Python 3.12 or 3.13 (the versions continuous integration verifies)
 - No third-party Python packages are required.
 
 ## Project structure
@@ -49,24 +50,34 @@ JSON file.
 ├── campusflow/
 │   ├── __init__.py             # JSON storage and public package exports
 │   ├── assign.py               # Ticket assignment
+│   ├── auth.py                 # User registration and login
 │   ├── create_tickets.py       # Ticket model and ticket creation
 │   ├── list_view.py             # Listing and ticket lookup
+│   ├── notes.py                # Ticket follow-up notes
 │   ├── report.py                # Ticket reporting
 │   ├── understanding_check.py   # Engineering Understanding Check
 │   ├── validate_ticket.py       # Input validation
 │   └── workflow.py              # Status transitions and work queue
+├── docs/
+│   ├── ai-learning-log.md
+│   ├── baseline-check.md        # Behaviour of the app before this sprint
+│   └── design-decisions.md      # Decisions and the evidence behind them
 ├── tests/
 │   ├── test_assign.py
+│   ├── test_auth.py
+│   ├── test_bug_hunter.py
 │   ├── test_cli_integration.py
 │   ├── test_create_and_validate.py
 │   ├── test_list_view.py
+│   ├── test_notes.py
 │   ├── test_report.py
 │   ├── test_understanding_check.py
 │   ├── test_storage_integration.py
 │   └── test_workflow.py
 ├── .github/workflows/tests.yml # Continuous integration workflow
 ├── main.py                      # Interactive CLI entry point
-└── tickets.json                 # Local ticket store and sample data
+├── tickets.json                 # Local ticket store and sample data
+└── users.json                   # User accounts for registration and login
 ```
 
 ## Running the application
@@ -109,6 +120,15 @@ Invalid tickets raise `TicketValidationError` before persistence. Blank staff
 names and invalid or unknown ticket IDs are rejected by their respective
 operations.
 
+**Known gap.** `affected_users` rejects booleans, floats, zero and negative
+counts, but a numeric *string* such as `"12"` is still accepted, because the
+check is `str(value).isdigit()`. Requirement A requires an actual integer, so
+this is a defect rather than a feature: the sample `tickets.json` in this
+repository ships `"affected_users": "12"` and loads only for that reason.
+`tests/test_bug_hunter.py` records the gap, and
+`docs/design-decisions.md` D2 describes the migration that must land before
+the validator is tightened.
+
 ## Status workflow and queue
 
 Status input is normalized so values such as `In Progress`, `in-progress`, and
@@ -133,15 +153,49 @@ stored list order unchanged. Sorting is:
 
 ## Reporting
 
-The report feature can:
+The report covers total tickets, counts by status, priority and category,
+the unresolved count, the resolved count, and the resolution percentage:
 
-- Return a structured report for supplied ticket data with total count,
-  original tickets, and counts grouped by normalized status.
-- Print a report from the stored JSON file, including totals by status and
-  priority.
+```text
+Total tickets:  5
+=======================
+Tickets By Status:
+---------------------
+Open:  2
+In Progress:  1
+Resolved:  2
+Unresolved (open + in progress):  3
+Resolved:  2
+Resolution rate:  40.0%
+==============================
+Tickets By Priority:
+------------------------------
+Critical:  2
+...
+Tickets By Category:
+------------------------------
+Network:  2
+...
+```
 
-An empty stored ticket file produces a `No tickets found in the report.`
-message.
+- `unresolved` counts `open` plus `in progress` tickets.
+- `resolution_percent` is `resolved / total * 100`, rounded to one decimal
+  place. An empty dataset reports `0.0%` rather than failing.
+- A ticket counts under its **current** status, so a reopened ticket counts
+  as `open`. Status buckets never overlap, so they always add up to the
+  total.
+- Statuses are matched through `workflow.normalise_status`, so `In Progress`
+  and `in_progress` land in the same bucket as `in progress`.
+- Categories are matched case-insensitively, since ticket creation stores
+  the category exactly as typed. `Network` and `network` are one bucket.
+- There is no `closed` bucket: `closed` is not a legal status in this
+  application (see `docs/design-decisions.md`, D7).
+
+`generate_total_ticket_report(tickets)` returns the structured report as a
+dictionary; called with no argument it prints the same report for the stored
+file. Both paths format one shared result, so the printed figures and the
+returned figures cannot disagree. An empty stored ticket file produces a
+`No tickets found in the report.` message.
 
 ## Engineering Understanding Check
 
@@ -176,6 +230,10 @@ contains 82 tests covering:
 - Missing stores and failed updates.
 - Status lifecycle rules and invalid transitions.
 - Work queue filtering, ordering, and immutability.
+- Report totals, per-status/priority/category counts, unresolved and
+  resolved counts, resolution percentage, and the empty-dataset case.
+- Report counts after one ticket is resolved and another is reopened.
+- Bug-hunter boundary tests for the accepted types of `affected_users`.
 - Report generation.
 - The Understanding Check question bank, the A/B/C/D input guard, scoring,
   and the requirement that explanations are collected but never graded.
@@ -184,7 +242,7 @@ contains 82 tests covering:
 Run the complete suite:
 
 ```bash
-python -m unittest discover -v
+python -m unittest discover -s tests -v
 ```
 
 Compile all Python sources:
@@ -211,9 +269,14 @@ responsibilities.
 
 | Name | Role | Responsibilities |
 | --- | --- | --- |
-|  Timothy Ododo | Team Lead |  |
-|  Wuese Joy Ayande | member |  |
-|  Patrick Sean Odugboche | member  |
+| Timothy Ododo | Team Lead | Engineer A — ticket safety and storage: validation helpers, follow-up notes, safe JSON load and save |
+| Wuese Joy Ayande | Member | Original build — status workflow and the work queue |
+| Patrick Sean Odugboche | Member | Original build |
+| Okoh Daniel Oche | Member | Engineer B — search, reporting and CLI: search and filtering, quality reports, note menus, the Engineering Understanding Check |
+
+The first version of CampusFlow was built by Wuese Joy Ayande, Patrick Sean
+Odugboche and Timothy Ododo. The CampusFlow Next sprint continued the project
+with a pairing of Timothy Ododo (Engineer A) and Okoh Daniel Oche (Engineer B).
 
 ## Current implementation notes
 
