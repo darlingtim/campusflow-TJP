@@ -59,6 +59,7 @@ JSON file.
 │   ├── list_view.py            # Listing and ticket lookup
 │   ├── migrate.py              # One-time ticket store migration (decision D2)
 │   ├── notes.py                # Ticket notes
+│   ├── notes_menu.py           # Follow-up note menus (Requirement B)
 │   ├── report.py               # Ticket reporting
 │   ├── search.py               # Read-only ticket search
 │   ├── understanding_check.py  # Engineering Understanding Check
@@ -77,6 +78,7 @@ JSON file.
 │   ├── test_create_and_validate.py
 │   ├── test_list_view.py
 │   ├── test_notes.py
+│   ├── test_notes_menu.py
 │   ├── test_report.py
 │   ├── test_robustness.py
 │   ├── test_search.py
@@ -97,20 +99,30 @@ Run the CLI from the repository root:
 python main.py
 ```
 
-The application displays this menu:
+The application opens with the login menu:
+
+| Option | Action |
+| --- | --- |
+| 1 | Register |
+| 2 | Login |
+| 3 | Exit |
+
+After a successful login the ticket menu is shown for that user:
 
 | Option | Action |
 | --- | --- |
 | 1 | Raise a ticket |
 | 2 | List all tickets |
-| 3 | Search and view a ticket by ID |
+| 3 | View ticket by ID |
 | 4 | Assign a ticket |
 | 5 | View the work queue |
 | 6 | Update ticket status |
 | 7 | Generate a ticket report |
 | 8 | Search tickets |
 | 9 | Engineering Understanding Check |
-| 10 | Exit |
+| 10 | Add follow-up note |
+| 11 | View ticket notes |
+| 12 | Log out |
 
 The application reads and writes `./tickets.json` relative to the directory
 where `main.py` is started. If the file does not exist, reads return an empty
@@ -302,7 +314,7 @@ on their own. Both are pure functions over a list of ticket dictionaries;
 ## Testing
 
 The project uses Python's standard `unittest` framework. The suite currently
-contains 144 tests covering:
+contains 184 tests covering:
 
 - Ticket priority boundaries and serialization.
 - Validation success, validation errors, and malformed values.
@@ -318,6 +330,11 @@ contains 144 tests covering:
 - Note read permissions by user identity, including the case where two users
   share a first name.
 - Rejection of assignment to a resolved ticket.
+- The login gate: registration, a failed login returning to the login menu,
+  a successful login opening the ticket menu, and logout clearing the session.
+- The follow-up note menus: the 5-300 character rule, noteable statuses,
+  numeric note ordering, visibility filtering, and rejection of a user who is
+  neither the creator nor assigned to the ticket.
 - Status lifecycle rules and invalid transitions.
 - Work queue filtering, ordering, and immutability.
 - Report totals, per-status/priority/category counts, unresolved and
@@ -376,7 +393,8 @@ with a pairing of Timothy Ododo (Engineer A) and Okoh Daniel Oche (Engineer B).
 ## Current implementation notes
 
 - This is a local CLI application; it does not currently provide a web API,
-  database server, authentication, or multi-user locking.
+  database server, or multi-user locking. Accounts are stored in `users.json`
+  and the signed-in session lives in memory for the life of the process.
 - `tickets.json` is the persistence layer and should be backed up before
   manual bulk edits.
 - The application is intentionally small and uses the Python standard

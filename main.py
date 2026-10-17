@@ -1,9 +1,9 @@
 """Interactive command-line interface for campus support tickets."""
-from campusflow import (TicketValidationError, assign_ticket, change_status,
-						 generate_total_ticket_report, get_ticket, list_tickets,
-						 login_user, logout_user, raise_ticket, register_user,
-						 show_work_queue, understanding_check_menu,
-						 search_tickets_menu)
+from campusflow import (TicketValidationError, add_follow_up_note, assign_ticket,
+						 change_status, generate_total_ticket_report, get_ticket,
+						 list_tickets, login_user, logout_user, raise_ticket,
+						 register_user, search_tickets_menu, show_work_queue,
+						 understanding_check_menu, view_ticket_notes)
 
 
 def report_error(error):
@@ -20,7 +20,7 @@ def ticket_menu(user):
 		print("==========================================")
 		print(f"Signed in as {user['name']} ({user['role']})")
 		print("Please select an option from the menu below:")
-		print("\n1. Raise a ticket\n2. List all tickets\n3. View ticket by ID\n4. assign ticket\n5. view  ticket queue \n6. Update ticket status\n7. Generate ticket report\n8. Search tickets\n9. Engineering Understanding Check\n10. Log out")
+		print("\n1. Raise a ticket\n2. List all tickets\n3. View ticket by ID\n4. assign ticket\n5. view  ticket queue \n6. Update ticket status\n7. Generate ticket report\n8. Search tickets\n9. Engineering Understanding Check\n10. Add follow-up note\n11. View ticket notes\n12. Log out")
 		choice = input("\nChoose an option: ").strip()
 
 		try:
@@ -43,6 +43,10 @@ def ticket_menu(user):
 			elif choice == "9":
 				understanding_check_menu()
 			elif choice == "10":
+				add_follow_up_note(user)
+			elif choice == "11":
+				view_ticket_notes(user)
+			elif choice == "12":
 				logout_user()
 				return
 			else:

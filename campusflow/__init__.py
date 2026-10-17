@@ -139,3 +139,4 @@ from .report import generate_total_ticket_report
 from .auth import get_current_user, login_user, logout_user, register_user
 from . understanding_check import understanding_check_menu
 from . search import search_tickets_menu
+from .notes_menu import add_follow_up_note, view_ticket_notes
