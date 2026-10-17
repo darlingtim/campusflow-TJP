@@ -302,7 +302,7 @@ on their own. Both are pure functions over a list of ticket dictionaries;
 ## Testing
 
 The project uses Python's standard `unittest` framework. The suite currently
-contains 82 tests covering:
+contains 144 tests covering:
 
 - Ticket priority boundaries and serialization.
 - Validation success, validation errors, and malformed values.
@@ -310,6 +310,14 @@ contains 82 tests covering:
 - Assignment and ticket lookup edge cases.
 - Full JSON persistence round trips.
 - Missing stores and failed updates.
+- Strict loading of the ticket store: corrupt JSON, a store that is not a list,
+  a ticket without a usable id, and duplicate ticket ids are rejected without
+  modifying the file.
+- One-time migration of the legacy store (numeric-string `affected_users`,
+  missing `notes`) and the backup it writes.
+- Note read permissions by user identity, including the case where two users
+  share a first name.
+- Rejection of assignment to a resolved ticket.
 - Status lifecycle rules and invalid transitions.
 - Work queue filtering, ordering, and immutability.
 - Report totals, per-status/priority/category counts, unresolved and
