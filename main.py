@@ -30,8 +30,8 @@ def main():
 				generate_total_ticket_report()
 			elif choice == "8":
 				search_tickets_menu()
-      elif choice == "9":
-        understanding_check_menu()
+			elif choice == "9":
+				understanding_check_menu()
 			elif choice == "10":
 				print("\nYou have exited the application.")
 				break
