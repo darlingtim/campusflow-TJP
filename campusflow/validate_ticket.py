@@ -2,6 +2,14 @@ class TicketValidationError(Exception):
     pass
 
 
+class TicketStorageError(TicketValidationError, ValueError):
+    """Raised when stored tickets are corrupt or violate the on-disk format.
+
+    Inherits from ValueError as well so menu functions that catch either
+    exception type report the problem instead of crashing.
+    """
+
+
 def validate_ticket(ticket):
     errors = []
 
@@ -25,13 +33,11 @@ def validate_ticket(ticket):
     if urgency.strip().lower() not in ["low", "medium", "high"]:
         errors.append("Urgency must be low, medium, or high.")
 
-    affected_users_text = str(affected_users).strip() if affected_users is not None else ""
-    if not affected_users_text:
-        errors.append("Ticket affected users cannot be empty.")
-
-    if not affected_users_text.isdigit():
+    # A real integer only. isinstance(True, int) is True, so bools are checked
+    # first, and a numeric string like "12" is not an integer count.
+    if isinstance(affected_users, bool) or not isinstance(affected_users, int):
         errors.append("Affected users must be a valid whole number.")
-    elif int(affected_users_text) <= 0:
+    elif affected_users <= 0:
         errors.append("Affected users must be greater than zero.")
 
     return errors
