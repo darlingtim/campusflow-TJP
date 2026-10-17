@@ -15,8 +15,8 @@ def _ticket_value(ticket, field):
     return getattr(ticket, field, None)
 
 
-def _identity_matches(user_id, user_name, stored_identity):
-    """Match a user by ID or name against a stored ticket identity."""
+def identity_matches(user_id, user_name, stored_identity):
+    """Match a user by ID or full name against a stored ticket identity."""
     if isinstance(stored_identity, dict):
         stored_identity = (
             stored_identity.get("id")
@@ -28,6 +28,8 @@ def _identity_matches(user_id, user_name, stored_identity):
         return False
 
     stored_target = stored_identity.strip().casefold()
+    if not stored_target:
+        return False
 
     if user_id and str(user_id).strip().casefold() == stored_target:
         return True
@@ -35,11 +37,16 @@ def _identity_matches(user_id, user_name, stored_identity):
     if not isinstance(user_name, str):
         return False
 
-    user_name_clean = user_name.strip().casefold()
-    return (
-        user_name_clean == stored_target
-        or user_name_clean.split(" ", 1)[0] == stored_target
-    )
+    # Whole-name comparison only. Matching just the first name would let any
+    # user who shares a first name authorize as the assignee or the creator.
+    return user_name.strip().casefold() == stored_target
+
+
+def is_ticket_participant(ticket, user_id=None, user_name=None):
+    """Return True when the user created the ticket or is assigned to it."""
+    return identity_matches(
+        user_id, user_name, _ticket_value(ticket, "assigned_to")
+    ) or identity_matches(user_id, user_name, _ticket_value(ticket, "created_by"))
 
 
 def validate_note(ticket, author, role=None, message=None, visibility=None):
@@ -70,13 +77,7 @@ def validate_note(ticket, author, role=None, message=None, visibility=None):
     # Permissions: Support leads have universal note access.
     # Otherwise, verify ticket creator or assigned user status.
     if role != "support_lead":
-        assigned_to = _ticket_value(ticket, "assigned_to")
-        created_by = _ticket_value(ticket, "created_by")
-
-        is_assigned = _identity_matches(author_id, author, assigned_to)
-        is_ticket_creator = _identity_matches(author_id, author, created_by)
-
-        if not is_assigned and not is_ticket_creator:
+        if not is_ticket_participant(ticket, author_id, author):
             if role == "student_fellow":
                 raise TicketValidationError(
                     "Only the ticket creator or assigned staff member can add a note."

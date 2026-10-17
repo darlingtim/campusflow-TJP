@@ -7,10 +7,11 @@ from unittest.mock import patch
 
 from campusflow import _load_tickets, load_users, read_ticket_file
 from campusflow.auth import get_current_user, login_user, logout_user
-from campusflow.create_tickets import Ticket, generate_ticket_id
-from campusflow.notes import Note, generate_note_id, get_visible_notes
+from campusflow.create_tickets import generate_ticket_id
+from campusflow.migrate import migrate_ticket, migrate_tickets_file
+from campusflow.notes import generate_note_id, get_visible_notes
 from campusflow.validate_note import validate_note
-from campusflow.validate_ticket import TicketValidationError
+from campusflow.validate_ticket import TicketStorageError, TicketValidationError
 
 
 class TestSystemRobustness(unittest.TestCase):
@@ -58,13 +59,63 @@ class TestSystemRobustness(unittest.TestCase):
                 self.assertEqual(read_ticket_file(), [])
                 self.assertEqual(load_users(), [])
 
-                # Malformed JSON files (syntax errors)
+                # Malformed JSON files (syntax errors). A corrupt ticket store
+                # is rejected rather than read as empty, so the next save
+                # cannot overwrite recoverable data (Requirement E).
                 Path("tickets.json").write_text("{ broken json ...", encoding="utf-8")
                 Path("users.json").write_text("[ not valid json", encoding="utf-8")
-                self.assertEqual(read_ticket_file(), [])
+                with self.assertRaises(TicketStorageError):
+                    read_ticket_file()
                 self.assertEqual(load_users(), [])
+
+                # The rejected file is left exactly as it was found.
+                self.assertEqual(
+                    Path("tickets.json").read_text(encoding="utf-8"),
+                    "{ broken json ...",
+                )
             finally:
                 os.chdir(orig_dir)
+
+    def test_duplicate_ticket_ids_are_rejected_on_load(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            orig_dir = os.getcwd()
+            os.chdir(temp_dir)
+            try:
+                Path("tickets.json").write_text(
+                    json.dumps([{"id": "T001"}, {"id": "T001"}]),
+                    encoding="utf-8",
+                )
+
+                with self.assertRaisesRegex(
+                    TicketStorageError, "duplicate ticket id T001"
+                ):
+                    read_ticket_file()
+            finally:
+                os.chdir(orig_dir)
+
+    def test_ticket_without_a_usable_id_is_rejected_on_load(self):
+        cases = [
+            ([{"id": None}], "without a usable id"),
+            ([{"id": "  "}], "without a usable id"),
+            ([{"title": "no id at all"}], "without a usable id"),
+            (["not an object"], "not an object"),
+            ({"id": "T001"}, "does not contain a list"),
+        ]
+
+        for records, expected in cases:
+            with self.subTest(records=records):
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    orig_dir = os.getcwd()
+                    os.chdir(temp_dir)
+                    try:
+                        Path("tickets.json").write_text(
+                            json.dumps(records), encoding="utf-8"
+                        )
+
+                        with self.assertRaisesRegex(TicketStorageError, expected):
+                            read_ticket_file()
+                    finally:
+                        os.chdir(orig_dir)
 
     # 3. Successful and failed authentication correctly updates the current-user state
     def test_authentication_updates_current_user_state(self):
@@ -107,7 +158,8 @@ class TestSystemRobustness(unittest.TestCase):
             logout_user()
             self.assertIsNone(get_current_user())
 
-    # 4. Shared-note visibility is restricted to ticket creator, assigned user, or support lead
+    # 4. Shared notes are restricted to the ticket creator, assigned user,
+    #    or support lead, for both writing and reading
     def test_shared_note_permission_restricted_to_creator_assigned_or_support_lead(self):
         ticket = {
             "id": "T001",
@@ -155,6 +207,126 @@ class TestSystemRobustness(unittest.TestCase):
             "Only the assigned staff member can add a note.",
         ):
             validate_note(ticket, unrelated_staff, "Unassigned staff trying to note")
+
+        # Reading shared notes follows the same rule: the creator, the assigned
+        # user, and support leads see them, and nobody else does.
+        noted_ticket = dict(ticket)
+        noted_ticket["notes"] = [
+            {
+                "id": "N001",
+                "author": "Charles",
+                "role": "student_fellow",
+                "message": "Creator adding details",
+                "visibility": "shared",
+                "created_at": "2026-10-16T00:00:00+00:00",
+            }
+        ]
+
+        self.assertEqual(
+            get_visible_notes(noted_ticket, creator_user), noted_ticket["notes"]
+        )
+        self.assertEqual(
+            get_visible_notes(noted_ticket, assigned_user), noted_ticket["notes"]
+        )
+        self.assertEqual(
+            get_visible_notes(noted_ticket, lead_user), noted_ticket["notes"]
+        )
+        self.assertEqual(get_visible_notes(noted_ticket, unrelated_student), [])
+        self.assertEqual(get_visible_notes(noted_ticket, unrelated_staff), [])
+
+
+    # 5. The stored data migrates once to the current format (decision D2)
+    def test_migrate_ticket_converts_numeric_string_and_adds_notes(self):
+        migrated = migrate_ticket(
+            {
+                "id": "T001",
+                "title": "hello",
+                "affected_users": "12",
+                "status": "open",
+            }
+        )
+
+        self.assertEqual(migrated["affected_users"], 12)
+        self.assertEqual(migrated["notes"], [])
+
+    def test_migrate_ticket_leaves_other_fields_alone(self):
+        original = {
+            "id": "T001",
+            "assigned_to": "Ada",
+            "affected_users": 5,
+            "notes": [{"id": "N001"}],
+        }
+
+        self.assertEqual(migrate_ticket(original), original)
+        self.assertEqual(original["affected_users"], 5)  # not mutated in place
+
+    def test_migrate_ticket_does_not_repair_an_unusable_count(self):
+        # A value that is not a whole number is left for the strict loader to
+        # reject, rather than being silently guessed at.
+        migrated = migrate_ticket({"id": "T001", "affected_users": "3.5"})
+
+        self.assertEqual(migrated["affected_users"], "3.5")
+
+    def test_migrate_tickets_file_writes_a_migrated_store_and_a_backup(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            orig_dir = os.getcwd()
+            os.chdir(temp_dir)
+            try:
+                original = [
+                    {"id": "T001", "affected_users": "12", "status": "open"},
+                    {"id": "T002", "affected_users": 4, "notes": []},
+                ]
+                Path("tickets.json").write_text(
+                    json.dumps(original), encoding="utf-8"
+                )
+
+                count = migrate_tickets_file()
+
+                self.assertEqual(count, 2)
+                self.assertEqual(
+                    json.loads(Path("tickets.json.bak").read_text(encoding="utf-8")),
+                    original,
+                )
+
+                # The migrated store loads through the strict loader.
+                stored = read_ticket_file()
+                self.assertEqual(stored[0]["affected_users"], 12)
+                self.assertEqual(stored[0]["notes"], [])
+                self.assertEqual(stored[1]["affected_users"], 4)
+            finally:
+                os.chdir(orig_dir)
+
+    # 6. Resolved tickets reject assignment as well as notes (Requirement A)
+    def test_resolved_ticket_rejects_assignment(self):
+        from campusflow.assign import assign_ticket
+
+        tickets = [{"id": "T001", "status": "resolved", "assigned_to": None}]
+
+        with patch("campusflow.assign.read_ticket_file", return_value=tickets):
+            with patch("campusflow.assign.update_ticket") as update:
+                with patch("builtins.input", side_effect=["T001", "Ada"]):
+                    with self.assertRaisesRegex(
+                        TicketValidationError, "is resolved"
+                    ):
+                        assign_ticket()
+
+        self.assertIsNone(tickets[0]["assigned_to"])
+        update.assert_not_called()
+
+    def test_open_ticket_still_accepts_assignment(self):
+        from campusflow.assign import assign_ticket
+
+        tickets = [{"id": "T001", "status": "open", "assigned_to": None}]
+
+        with patch("campusflow.assign.read_ticket_file", return_value=tickets):
+            with patch(
+                "campusflow.assign.update_ticket", return_value="update success"
+            ) as update:
+                with patch("builtins.input", side_effect=["T001", "Ada"]):
+                    assign_ticket()
+
+        self.assertEqual(tickets[0]["assigned_to"], "Ada")
+        update.assert_called_once()
 
 
 if __name__ == "__main__":
