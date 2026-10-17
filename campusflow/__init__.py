@@ -124,6 +124,45 @@ def save_users(users: List[Dict[str, Any]]) -> None:
 
 
 # --- Package Exports ---
+# The names below are re-exported for callers such as main.py, so static
+# analysis must see them as part of the public API rather than as imports
+# that nothing in this module reads.
+__all__ = [
+    # Storage
+    "save_ticket",
+    "update_ticket",
+    "read_ticket_file",
+    "load_users",
+    "save_users",
+    # Models, validation and notes
+    "Ticket",
+    "raise_ticket",
+    "generate_ticket_id",
+    "validate_ticket",
+    "TicketStorageError",
+    "TicketValidationError",
+    "Note",
+    "add_note",
+    "get_visible_notes",
+    "generate_note_id",
+    # Ticket operations
+    "assign_ticket",
+    "list_tickets",
+    "get_ticket",
+    "change_status",
+    "show_work_queue",
+    "generate_total_ticket_report",
+    # Accounts and menus
+    "get_current_user",
+    "login_user",
+    "logout_user",
+    "register_user",
+    "understanding_check_menu",
+    "search_tickets_menu",
+    "add_follow_up_note",
+    "view_ticket_notes",
+]
+
 # Core validation and models imported first to prevent circular imports
 from .validate_ticket import (
     validate_ticket,

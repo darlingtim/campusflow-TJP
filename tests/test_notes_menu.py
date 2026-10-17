@@ -183,7 +183,8 @@ class TestFormatNote(unittest.TestCase):
 class TestAddFollowUpNoteMenu(unittest.TestCase):
     """The menu function, driven by patched input()."""
 
-    def _run(self, ticket, answers, user=STUDENT):
+    def _run(self, ticket, answers, user=None):
+        user = STUDENT if user is None else user
         with patch("campusflow.notes_menu.read_ticket_file",
                    return_value=[ticket]):
             with patch("campusflow.notes.update_ticket",
@@ -266,7 +267,8 @@ class TestAddFollowUpNoteMenu(unittest.TestCase):
 
 class TestViewTicketNotesMenu(unittest.TestCase):
 
-    def _run(self, ticket, answers, user=STUDENT):
+    def _run(self, ticket, answers, user=None):
+        user = STUDENT if user is None else user
         with patch("campusflow.notes_menu.read_ticket_file",
                    return_value=[ticket]):
             with patch("builtins.input", side_effect=answers):
