@@ -18,12 +18,24 @@ JSON file.
 - List all stored tickets.
 - Search for a ticket by ID.
 - Assign tickets to staff members.
+- Add shared or internal notes, restricted to the assigned staff member, the
+  student/fellow who created the ticket, or a support lead.
+- A student/fellow may include one optional initial note while creating a
+  ticket; notes added after creation must contain text.
+- Student/fellow notes are always shared; only support staff and support leads
+  can create internal notes.
+- `add_note()` is the no-argument interactive note-entry function. It prompts
+  for the ticket and message; author and role come from the logged-in user,
+  and support roles choose visibility interactively.
 - Display an unresolved work queue ordered by priority and then ticket number.
 - Enforce the status lifecycle:
   - `open` -> `in progress` -> `resolved`
   - A resolved ticket can be explicitly reopened to `open`.
 - Require an assignee before a ticket can move to `in progress`.
 - Generate status, priority and category reports.
+- Generate status and priority reports.
+- Run an in-app Engineering Understanding Check on the application's own
+  behaviour.
 - Persist tickets in human-readable `tickets.json`.
 
 ## Requirements
@@ -43,6 +55,7 @@ JSON file.
 │   ├── list_view.py             # Listing and ticket lookup
 │   ├── notes.py                # Ticket follow-up notes
 │   ├── report.py                # Ticket reporting
+│   ├── understanding_check.py   # Engineering Understanding Check
 │   ├── validate_ticket.py       # Input validation
 │   └── workflow.py              # Status transitions and work queue
 ├── docs/
@@ -58,6 +71,7 @@ JSON file.
 │   ├── test_list_view.py
 │   ├── test_notes.py
 │   ├── test_report.py
+│   ├── test_understanding_check.py
 │   ├── test_storage_integration.py
 │   └── test_workflow.py
 ├── .github/workflows/tests.yml # Continuous integration workflow
@@ -85,7 +99,8 @@ The application displays this menu:
 | 5 | View the work queue |
 | 6 | Update ticket status |
 | 7 | Generate a ticket report |
-| 8 | Exit |
+| 8 | Engineering Understanding Check |
+| 9 | Exit |
 
 The application reads and writes `./tickets.json` relative to the directory
 where `main.py` is started. If the file does not exist, reads return an empty
@@ -182,10 +197,30 @@ file. Both paths format one shared result, so the printed figures and the
 returned figures cannot disagree. An empty stored ticket file produces a
 `No tickets found in the report.` message.
 
+## Engineering Understanding Check
+
+Menu option 8 runs a short multiple-choice check on how this application
+behaves. All six questions come from the sprint brief's question bank; the
+answer key is verified against this codebase, and each key is commented with
+the behaviour that justifies it.
+
+- An answer that is not `A`, `B`, `C` or `D` is rejected and the question is
+  asked again.
+- One point is scored per correct answer, so the result is `0/6` to `6/6`.
+- After the questions you are asked to explain at least two of your answers in
+  your own words.
+
+Explanations are **recorded, not graded**. A matching keyword does not make an
+explanation correct; they are printed at the end so they can be discussed.
+
+The question bank is plain data and `score_answers()` is a pure function that
+takes a mapping of question number to chosen letter, so scoring is tested
+without going near `input()` or `print()`. The check writes nothing to disk.
+
 ## Testing
 
 The project uses Python's standard `unittest` framework. The suite currently
-contains 77 tests covering:
+contains 82 tests covering:
 
 - Ticket priority boundaries and serialization.
 - Validation success, validation errors, and malformed values.
@@ -199,6 +234,9 @@ contains 77 tests covering:
   resolved counts, resolution percentage, and the empty-dataset case.
 - Report counts after one ticket is resolved and another is reopened.
 - Bug-hunter boundary tests for the accepted types of `affected_users`.
+- Report generation.
+- The Understanding Check question bank, the A/B/C/D input guard, scoring,
+  and the requirement that explanations are collected but never graded.
 - Main menu exit and invalid-option behavior.
 
 Run the complete suite:
