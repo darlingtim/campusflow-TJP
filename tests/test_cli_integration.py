@@ -8,7 +8,7 @@ USER = {
     "id": "U001",
     "name": "Ada Lovelace",
     "username": "ada",
-    "password": "secure123",
+    "password": "secure123",  # nosec B105 - fixture value, never a real login
     "role": "student_fellow",
 }
 
