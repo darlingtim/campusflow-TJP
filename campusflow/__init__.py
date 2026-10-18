@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
-
 def _load_tickets(ticket_file: str = "./tickets.json") -> List[Dict[str, Any]]:
     """Load tickets, creating an empty store when it does not exist or is empty."""
     os.makedirs(os.path.dirname(ticket_file) or ".", exist_ok=True)

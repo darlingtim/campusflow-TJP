@@ -125,7 +125,7 @@ class TestTicket(unittest.TestCase):
 
     def test_raise_ticket_accepts_authenticated_user(self):
         user = {"id": "U001", "name": "Ada", "role": "student_fellow"}
-        answers = ["Wi-Fi outage", "Network", "high", "2", ""]
+        answers = ["Wi-Fi outage", "Network", "high", "2", "", ""]
         with patch("builtins.input", side_effect=answers):
             with patch("campusflow.create_tickets.generate_ticket_id", return_value="T001"):
                 with patch("campusflow.create_tickets.save_ticket") as save:
@@ -133,6 +133,39 @@ class TestTicket(unittest.TestCase):
 
         saved_ticket = save.call_args.args[0]
         self.assertEqual(saved_ticket["created_by"], "U001")
+        self.assertIsNone(saved_ticket["assigned_to"])
+        self.assertIsNone(saved_ticket["assigned_by"])
+
+    def test_student_can_optionally_assign_ticket_to_support_staff_on_creation(self):
+        user = {"id": "U001", "name": "Student", "role": "student_fellow"}
+        staff = {"id": "U002", "name": "Ada", "username": "ada", "role": "support_staff"}
+        answers = ["Wi-Fi outage", "Network", "high", "2", "Ada", ""]
+        with patch("builtins.input", side_effect=answers):
+            with patch("campusflow.create_tickets.load_users", return_value=[staff]):
+                with patch("campusflow.create_tickets.generate_ticket_id", return_value="T001"):
+                    with patch("campusflow.create_tickets.save_ticket") as save:
+                        raise_ticket(user)
+
+        self.assertEqual(save.call_args.args[0]["assigned_to"], "Ada")
+        self.assertEqual(save.call_args.args[0]["assigned_by"], "Student")
+
+    def test_creator_role_and_support_assignment_note_follow_current_user(self):
+        user = {"id": "U002", "name": "Ada", "role": "support_staff"}
+        staff = [user]
+        answers = ["Wi-Fi outage", "Network", "high", "2", "Ada", "Taking ownership"]
+
+        with patch("builtins.input", side_effect=answers):
+            with patch("campusflow.create_tickets.load_users", return_value=staff):
+                with patch("campusflow.create_tickets.generate_ticket_id", return_value="T001"):
+                    with patch("campusflow.create_tickets.save_ticket") as save:
+                        ticket = raise_ticket(user)
+
+        saved_ticket = save.call_args.args[0]
+        self.assertEqual(saved_ticket["assigned_to"], "Ada")
+        self.assertEqual(saved_ticket["assigned_by"], "Ada")
+        self.assertEqual(saved_ticket["notes"][0]["role"], "support_staff")
+        self.assertEqual(saved_ticket["notes"][0]["visibility"], "internal")
+        self.assertEqual(ticket.to_dict()["notes"][0]["message"], "Taking ownership")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,12 @@
 from datetime import datetime, timezone
 
-from . import read_ticket_file, save_ticket, validate_ticket, TicketValidationError
+from . import (
+    load_users,
+    read_ticket_file,
+    save_ticket,
+    validate_ticket,
+    TicketValidationError,
+)
 from .notes import Note, generate_note_id
 
 
@@ -16,6 +22,9 @@ class Ticket:
         created_by_name=None,
         initial_note=None,
         creator_role="student_fellow",
+        initial_note_visibility="shared",
+        assigned_to=None,
+        assigned_by=None,
     ):
         self.id = ticket_id
         self.title = title
@@ -24,7 +33,8 @@ class Ticket:
         self.affected_users = affected_users
         self.priority = self.calculate_priority()
         self.status = "open"
-        self.assigned_to = None
+        self.assigned_to = assigned_to
+        self.assigned_by = assigned_by
         self.notes = []
         self.created_at = datetime.now(timezone.utc).isoformat(
             timespec="seconds"
@@ -53,7 +63,7 @@ class Ticket:
                     author=author_display,
                     role=creator_role,
                     message=initial_note.strip(),
-                    visibility="shared",
+                    visibility=initial_note_visibility,
                     author_id=created_by,
                 )
             )
@@ -91,6 +101,7 @@ class Ticket:
             "priority": self.priority,
             "status": self.status,
             "assigned_to": self.assigned_to,
+            "assigned_by": self.assigned_by,
             "created_at": self.created_at,
             "created_by": self.created_by,
             "notes": [
@@ -107,11 +118,6 @@ def raise_ticket(current_user=None, initial_note=None):
     urgency = input("Enter urgency (low/medium/high): ").strip().lower()
     affected_users = input("Enter number of affected users: ").strip()
 
-    if initial_note is None:
-        initial_note = input("Enter an optional note (press Enter to skip): ").strip()
-
-    ticket_id = generate_ticket_id()
-
     created_by = None
     created_by_name = None
     creator_role = "student_fellow"
@@ -123,6 +129,51 @@ def raise_ticket(current_user=None, initial_note=None):
         created_by_name = current_user.get("name") or current_user.get("username")
         creator_role = current_user.get("role", "student_fellow")
 
+    assigned_to = None
+    assigned_by = None
+    assignment_note = False
+    if current_user is not None:
+        assignee_name = input(
+            "Enter an optional assignee name (press Enter to skip): "
+        ).strip()
+        if assignee_name:
+            allowed_roles = {"support_staff"}
+            if creator_role == "support_lead":
+                allowed_roles = {"support_staff", "support_lead"}
+            target = next((
+                user for user in load_users()
+                if user.get("role") in allowed_roles
+                and assignee_name.casefold() in {
+                    str(user.get(field)).strip().casefold()
+                    for field in ("id", "name", "username")
+                    if user.get(field)
+                }
+            ), None)
+            if target is None:
+                raise TicketValidationError(
+                    "The selected assignee must have a permitted support role."
+                )
+            if creator_role == "support_staff" and (
+                target.get("id") != current_user.get("id")
+            ):
+                raise TicketValidationError(
+                    "Support staff can only assign an unassigned ticket to themselves."
+                )
+            assigned_to = target.get("name") or target.get("username")
+            assigned_by = created_by_name
+            assignment_note = creator_role in {"support_staff", "support_lead"}
+
+    if initial_note is None:
+        prompt = (
+            "Enter an internal assignment note: "
+            if assignment_note
+            else "Enter an optional note (press Enter to skip): "
+        )
+        initial_note = input(prompt).strip()
+    initial_note_visibility = "internal" if assignment_note else "shared"
+
+    ticket_id = generate_ticket_id()
+
     ticket = Ticket(
         ticket_id=ticket_id,
         title=title,
@@ -133,6 +184,9 @@ def raise_ticket(current_user=None, initial_note=None):
         created_by_name=created_by_name,
         initial_note=initial_note if initial_note else None,
         creator_role=creator_role,
+        initial_note_visibility=initial_note_visibility,
+        assigned_to=assigned_to,
+        assigned_by=assigned_by,
     )
 
     errors = validate_ticket(ticket)

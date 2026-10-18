@@ -31,7 +31,7 @@ def ticket_menu(user):
 			elif choice == "3":
 				get_ticket()
 			elif choice == "4":
-				assign_ticket()
+				assign_ticket(user=user)
 			elif choice == "5":
 				show_work_queue()
 			elif choice == "6":
@@ -47,7 +47,7 @@ def ticket_menu(user):
 				return
 			else:
 				print("\nError:\n    Invalid option. please select a valid option from the menu.")
-		except (TicketValidationError, ValueError) as error:
+		except (PermissionError, TicketValidationError, ValueError) as error:
 			report_error(error)
 
 
@@ -74,7 +74,7 @@ def main():
 				return
 			else:
 				print("Invalid option.")
-		except (TicketValidationError, ValueError) as error:
+		except (PermissionError, TicketValidationError, ValueError) as error:
 			report_error(error)
 
 
