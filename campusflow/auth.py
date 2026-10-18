@@ -14,6 +14,14 @@ def get_current_user():
     return _current_user
 
 
+def require_current_user():
+    """Return the active user or raise when no user is logged in."""
+    user = get_current_user()
+    if user is None:
+        raise PermissionError("A logged-in user is required.")
+    return user
+
+
 def register_user():
     users = load_users()
 

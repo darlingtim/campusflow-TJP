@@ -114,3 +114,34 @@ def validate_note(ticket, author, role=None, message=None, visibility=None):
         "message": message,
         "visibility": visibility,
     }
+
+
+def validate_note_view(ticket, user):
+    """Return errors when a user is not allowed to view a ticket's notes."""
+    user_id = None
+    user_name = None
+
+    if isinstance(user, dict):
+        role = user.get("role")
+        user_id = user.get("id")
+        user_name = user.get("name") or user.get("username")
+    else:
+        role = getattr(user, "role", None)
+        user_id = getattr(user, "id", None)
+        user_name = getattr(user, "name", None) or getattr(user, "username", None)
+
+    errors = []
+    if role not in ALLOWED_NOTE_ROLES:
+        return ["Invalid user role."]
+
+    if role == "support_lead":
+        return errors
+
+    identity_field = "created_by" if role == "student_fellow" else "assigned_to"
+    if not _identity_matches(user_id, user_name, _ticket_value(ticket, identity_field)):
+        if role == "student_fellow":
+            errors.append("Only the ticket creator can view notes.")
+        else:
+            errors.append("Only the assigned staff member can view notes.")
+
+    return errors
