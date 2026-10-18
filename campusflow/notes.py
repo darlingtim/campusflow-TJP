@@ -157,6 +157,8 @@ def add_note(
         message=message,
         visibility=visibility,
     )
+    if isinstance(validated, list):
+        raise TicketValidationError(" ".join(validated))
     return save_note(ticket, validated)
 
 

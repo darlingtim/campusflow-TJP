@@ -44,6 +44,7 @@ def _identity_matches(user_id, user_name, stored_identity):
 
 def validate_note(ticket, author, role=None, message=None, visibility=None):
     """Validate and normalize note input before a note is created."""
+    errors = []
     author_id = None
 
     if isinstance(author, dict):
@@ -54,18 +55,21 @@ def validate_note(ticket, author, role=None, message=None, visibility=None):
         author = author.get("name") or author.get("username")
 
     if _ticket_value(ticket, "status") == "resolved":
-        raise TicketValidationError("Cannot add notes to a resolved ticket.")
+        errors.append("Cannot add notes to a resolved ticket.")
 
     if role not in ALLOWED_NOTE_ROLES:
-        raise TicketValidationError("Invalid user role.")
+        errors.append("Invalid user role.")
 
     if not isinstance(message, str) or not message.strip():
-        raise TicketValidationError("Note cannot be empty.")
+        errors.append("Note cannot be empty.")
 
-    message = message.strip()
+    if isinstance(message, str):
+        message = message.strip()
+        if len(message) < 5 or len(message) > 300:
+            errors.append("Note must be between 5 and 300 characters.")
 
     if not isinstance(author, str) or not author.strip():
-        raise TicketValidationError("Note owner cannot be blank.")
+        errors.append("Note owner cannot be blank.")
 
     # Permissions: Support leads have universal note access.
     # Otherwise, verify ticket creator or assigned user status.
@@ -78,12 +82,11 @@ def validate_note(ticket, author, role=None, message=None, visibility=None):
 
         if not is_assigned and not is_ticket_creator:
             if role == "student_fellow":
-                raise TicketValidationError(
+                errors.append(
                     "Only the ticket creator or assigned staff member can add a note."
                 )
-            raise TicketValidationError(
-                "Only the assigned staff member can add a note."
-            )
+            else:
+                errors.append("Only the assigned staff member can add a note.")
 
     if role == "student_fellow":
         visibility = "shared"
@@ -91,15 +94,18 @@ def validate_note(ticket, author, role=None, message=None, visibility=None):
         visibility = "shared"
 
     if visibility not in {"shared", "internal"}:
-        raise TicketValidationError("Visibility must be shared or internal.")
+        errors.append("Visibility must be shared or internal.")
 
     if visibility == "internal" and role not in {
         "support_staff",
         "support_lead",
     }:
-        raise TicketValidationError(
+        errors.append(
             "Only support staff and support leads can add internal notes."
         )
+
+    if errors:
+        return errors
 
     return {
         "author": author.strip(),

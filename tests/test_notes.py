@@ -60,6 +60,26 @@ class TestNote(unittest.TestCase):
             },
         )
 
+    def test_validate_note_returns_all_validation_errors(self):
+        errors = validate_note(
+            make_ticket("resolved"),
+            {"name": "Bea", "role": "guest"},
+            message="",
+            visibility="private",
+        )
+
+        self.assertEqual(
+            errors,
+            [
+                "Cannot add notes to a resolved ticket.",
+                "Invalid user role.",
+                "Note cannot be empty.",
+                "Note must be between 5 and 300 characters.",
+                "Only the assigned staff member can add a note.",
+                "Visibility must be shared or internal.",
+            ],
+        )
+
     def test_note_strips_message_and_serializes_all_fields(self):
         note = Note("N001", "Ada", "support_staff", "  Investigating  ", "internal")
 

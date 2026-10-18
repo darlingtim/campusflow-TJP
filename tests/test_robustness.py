@@ -143,18 +143,16 @@ class TestSystemRobustness(unittest.TestCase):
         self.assertEqual(res_lead["visibility"], "shared")
 
         # Unrelated student cannot add a note
-        with self.assertRaisesRegex(
-            TicketValidationError,
+        self.assertIn(
             "Only the ticket creator or assigned staff member can add a note.",
-        ):
-            validate_note(ticket, unrelated_student, "Random student trying to note")
+            validate_note(ticket, unrelated_student, "Random student trying to note"),
+        )
 
         # Unrelated staff cannot add a note to a ticket assigned to someone else
-        with self.assertRaisesRegex(
-            TicketValidationError,
+        self.assertIn(
             "Only the assigned staff member can add a note.",
-        ):
-            validate_note(ticket, unrelated_staff, "Unassigned staff trying to note")
+            validate_note(ticket, unrelated_staff, "Unassigned staff trying to note"),
+        )
 
 
 if __name__ == "__main__":
