@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from campusflow.list_view import get_ticket, list_tickets
+from campusflow.list_view import get_ticket, get_ticket_by_id, list_tickets
 
 
 class TestListView(unittest.TestCase):
@@ -21,6 +21,11 @@ class TestListView(unittest.TestCase):
                     get_ticket()
 
         printed.assert_called_once_with(tickets[1])
+
+    def test_get_ticket_by_id_returns_matching_ticket_without_input(self):
+        tickets = [{"id": "T001"}, {"id": "T002"}]
+        with patch("campusflow.list_view.read_ticket_file", return_value=tickets):
+            self.assertIs(get_ticket_by_id("T002"), tickets[1])
 
     def test_get_ticket_does_not_stop_before_later_match(self):
         tickets = [{"id": "T001"}, {"id": "T002"}]

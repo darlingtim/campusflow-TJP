@@ -87,11 +87,17 @@ def save_users(users: List[Dict[str, Any]]) -> None:
 # Core validation and models imported first to prevent circular imports
 from .validate_ticket import validate_ticket, TicketValidationError
 from .create_tickets import Ticket, raise_ticket, generate_ticket_id
-from .notes import Note, add_note, get_visible_notes, generate_note_id
+from .notes import Note, add_note, get_visible_notes, view_notes, generate_note_id
 from .assign import assign_ticket
-from .list_view import list_tickets, get_ticket
+from .list_view import list_tickets, get_ticket, get_ticket_by_id
 from .workflow import change_status, show_work_queue
 from .report import generate_total_ticket_report
-from .auth import get_current_user, login_user, logout_user, register_user
+from .auth import (
+    get_current_user,
+    require_current_user,
+    login_user,
+    logout_user,
+    register_user,
+)
 from . understanding_check import understanding_check_menu
 from . search import search_tickets_menu

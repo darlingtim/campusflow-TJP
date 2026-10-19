@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 
 from . import read_ticket_file, update_ticket
-from .validate_note import validate_note
+from .auth import require_current_user
+from .list_view import get_ticket_by_id
+from .validate_note import validate_note, validate_note_view
 from .validate_ticket import TicketValidationError
 
 
@@ -77,10 +79,15 @@ def generate_note_id(ticket):
     return f"N{next_number:03d}"
 
 
-def get_visible_notes(ticket, role):
-    """Return only the notes the user's role can view."""
-    if isinstance(role, dict):
-        role = role.get("role")
+def get_visible_notes(ticket, user):
+    """Return notes visible to a user after view permission is validated."""
+    if isinstance(user, dict) or not isinstance(user, str):
+        errors = validate_note_view(ticket, user)
+        if errors:
+            raise PermissionError(" ".join(errors))
+        role = user.get("role") if isinstance(user, dict) else user.role
+    else:
+        role = user
 
     if role not in {
         "student_fellow",
@@ -104,6 +111,19 @@ def get_visible_notes(ticket, role):
     ]
 
 
+def view_notes(ticket, user=None):
+    """Return notes from a ticket after validating the active user's access."""
+    if isinstance(ticket, str):
+        ticket = get_ticket_by_id(ticket, read_ticket_file())
+    if user is None:
+        user = require_current_user()
+
+    errors = validate_note_view(ticket, user)
+    if errors:
+        raise PermissionError(" ".join(errors))
+    return get_visible_notes(ticket, user)
+
+
 def _prompt_visibility():
     while True:
         choice = input(
@@ -123,25 +143,18 @@ def add_note(
     visibility=None,
 ):
     """Create a note through the single note-entry workflow."""
-    from .auth import get_current_user
-
     if ticket is None:
         ticket_id = input("Enter ticket ID: ").strip()
-        ticket = next(
-            (
-                stored_ticket
-                for stored_ticket in read_ticket_file()
-                if stored_ticket.get("id") == ticket_id
-            ),
-            None,
-        )
-        if ticket is None:
-            raise TicketValidationError(f"Ticket {ticket_id} was not found.")
+        try:
+            ticket = get_ticket_by_id(ticket_id, read_ticket_file())
+        except ValueError as error:
+            raise TicketValidationError(str(error)) from error
 
     if user is None:
-        user = get_current_user()
-    if user is None:
-        raise TicketValidationError("A logged-in user is required.")
+        try:
+            user = require_current_user()
+        except PermissionError as error:
+            raise TicketValidationError(str(error)) from error
 
     if message is None:
         message = input("Enter note: ")
@@ -157,6 +170,8 @@ def add_note(
         message=message,
         visibility=visibility,
     )
+    if isinstance(validated, list):
+        raise TicketValidationError(" ".join(validated))
     return save_note(ticket, validated)
 
 

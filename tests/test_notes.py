@@ -10,8 +10,9 @@ from campusflow.notes import (
     add_note,
     generate_note_id,
     get_visible_notes,
+    view_notes,
 )
-from campusflow.validate_note import validate_note
+from campusflow.validate_note import validate_note, validate_note_view
 from campusflow.validate_ticket import TicketValidationError
 
 
@@ -58,6 +59,26 @@ class TestNote(unittest.TestCase):
                 "message": "Update",
                 "visibility": "shared",
             },
+        )
+
+    def test_validate_note_returns_all_validation_errors(self):
+        errors = validate_note(
+            make_ticket("resolved"),
+            {"name": "Bea", "role": "guest"},
+            message="",
+            visibility="private",
+        )
+
+        self.assertEqual(
+            errors,
+            [
+                "Cannot add notes to a resolved ticket.",
+                "Invalid user role.",
+                "Note cannot be empty.",
+                "Note must be between 5 and 300 characters.",
+                "Only the assigned staff member can add a note.",
+                "Visibility must be shared or internal.",
+            ],
         )
 
     def test_note_strips_message_and_serializes_all_fields(self):
@@ -254,6 +275,57 @@ class TestNote(unittest.TestCase):
     def test_get_visible_notes_rejects_unknown_role(self):
         with self.assertRaisesRegex(PermissionError, "Unauthorized user role."):
             get_visible_notes(make_ticket(), "guest")
+
+    def test_view_notes_validates_ticket_access_and_note_visibility(self):
+        ticket = {
+            "id": "T001",
+            "status": "open",
+            "created_by": "U001",
+            "assigned_to": "U002",
+            "notes": [
+                {"id": "N001", "visibility": "shared", "message": "Shared"},
+                {"id": "N002", "visibility": "internal", "message": "Internal"},
+            ],
+        }
+        student = {"id": "U001", "name": "Ada", "role": "student_fellow"}
+        staff = {"id": "U002", "name": "Bea", "role": "support_staff"}
+        lead = {"id": "U003", "name": "Cal", "role": "support_lead"}
+        stranger = {"id": "U004", "name": "Dan", "role": "student_fellow"}
+
+        self.assertEqual(len(view_notes(ticket, student)), 1)
+        self.assertEqual(len(view_notes(ticket, staff)), 2)
+        self.assertEqual(len(view_notes(ticket, lead)), 2)
+        self.assertEqual(
+            validate_note_view(ticket, stranger),
+            ["Only the ticket creator can view notes."],
+        )
+        with self.assertRaisesRegex(
+            PermissionError,
+            "Only the ticket creator can view notes.",
+        ):
+            view_notes(ticket, stranger)
+
+    def test_view_notes_loads_ticket_and_current_user(self):
+        ticket = {
+            "id": "T001",
+            "status": "open",
+            "created_by": "U001",
+            "notes": [
+                {"id": "N001", "visibility": "shared", "message": "Shared"},
+                {"id": "N002", "visibility": "internal", "message": "Internal"},
+            ],
+        }
+
+        with patch("campusflow.notes.read_ticket_file", return_value=[ticket]):
+            with patch(
+                "campusflow.auth.get_current_user",
+                return_value={
+                    "id": "U001",
+                    "name": "Ada",
+                    "role": "student_fellow",
+                },
+            ):
+                self.assertEqual(view_notes("T001"), [ticket["notes"][0]])
 
     def test_dictionary_ticket_is_supported_and_missing_notes_are_initialized(self):
         ticket = {"id": "T001", "status": "open"}
