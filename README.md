@@ -19,7 +19,14 @@ JSON file.
 - Search for a ticket by ID.
 - Search stored tickets by title, category, status, and priority, with the
   results optionally reordered most-urgent-first.
-- Assign tickets to staff members.
+- Allow support staff to reassign their tickets, and support leads to take
+  ownership, only to another support staff or support lead with a required
+  internal note.
+- Allow any logged-in user to optionally assign a new ticket during creation,
+  subject to their role's assignment permissions; students/fellows cannot
+  assign tickets afterward.
+- Store who assigned a ticket in `assigned_by`; explicit support assignments
+  include both the assigning user and assignee in the internal note.
 - Add shared or internal notes, restricted to the assigned staff member, the
   student/fellow who created the ticket, or a support lead.
 - A student/fellow may include one optional initial note while creating a
