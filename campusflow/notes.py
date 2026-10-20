@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from pprint import pprint
 
 from . import read_ticket_file, update_ticket
 from .auth import require_current_user
@@ -51,6 +52,8 @@ def _ticket_value(ticket, field):
 
 
 def _ticket_notes(ticket):
+    if ticket is None:
+        return []
     if isinstance(ticket, dict):
         return ticket.setdefault("notes", [])
     if not hasattr(ticket, "notes"):
@@ -111,17 +114,22 @@ def get_visible_notes(ticket, user):
     ]
 
 
-def view_notes(ticket, user=None):
+def view_notes(ticket=None, user=None):
     """Return notes from a ticket after validating the active user's access."""
-    if isinstance(ticket, str):
-        ticket = get_ticket_by_id(ticket, read_ticket_file())
+    if ticket is None:
+        ticket_id = input("enter ticket ID: ").strip()
+        ticket = get_ticket_by_id(ticket_id)
+    elif isinstance(ticket, str):
+        ticket = get_ticket_by_id(ticket)
     if user is None:
         user = require_current_user()
 
     errors = validate_note_view(ticket, user)
     if errors:
         raise PermissionError(" ".join(errors))
-    return get_visible_notes(ticket, user)
+    notes = get_visible_notes(ticket, user)
+    pprint(notes)
+    return notes
 
 
 def _prompt_visibility():

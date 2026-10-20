@@ -20,4 +20,5 @@ def get_ticket(ticket_id=None):
 
     ticket = get_ticket_by_id(ticket_id)
     print("\n")
-    return pprint(ticket)
+    pprint(ticket)
+    return ticket

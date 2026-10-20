@@ -327,6 +327,31 @@ class TestNote(unittest.TestCase):
             ):
                 self.assertEqual(view_notes("T001"), [ticket["notes"][0]])
 
+    def test_view_notes_prompts_for_ticket_when_not_provided(self):
+        ticket = {
+            "id": "T001",
+            "status": "open",
+            "created_by": "U001",
+            "notes": [
+                {"id": "N001", "visibility": "shared", "message": "Shared"},
+            ],
+        }
+
+        with patch("campusflow.notes.read_ticket_file", return_value=[ticket]):
+            with patch("builtins.input", return_value="T001"):
+                with patch("campusflow.notes.pprint") as printed_notes:
+                    with patch(
+                        "campusflow.auth.get_current_user",
+                        return_value={
+                            "id": "U001",
+                            "name": "Ada",
+                            "role": "student_fellow",
+                        },
+                    ):
+                        result = view_notes()
+                        self.assertEqual(result, [ticket["notes"][0]])
+                        printed_notes.assert_called_once_with([ticket["notes"][0]])
+
     def test_dictionary_ticket_is_supported_and_missing_notes_are_initialized(self):
         ticket = {"id": "T001", "status": "open"}
 
