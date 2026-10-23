@@ -118,9 +118,10 @@ class TestTicket(unittest.TestCase):
     def test_raise_ticket_rejects_invalid_input_without_saving(self):
         answers = ["", "Other", "low", "0", ""]
         with patch("builtins.input", side_effect=answers):
-            with patch("campusflow.create_tickets.save_ticket") as save:
-                with self.assertRaises(TicketValidationError):
-                    raise_ticket()
+            with patch("campusflow.create_tickets.generate_ticket_id", return_value="T001"):
+                with patch("campusflow.create_tickets.save_ticket") as save:
+                    with self.assertRaises(TicketValidationError):
+                        raise_ticket()
         save.assert_not_called()
 
     def test_raise_ticket_accepts_authenticated_user(self):
