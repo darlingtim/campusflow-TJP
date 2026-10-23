@@ -23,12 +23,13 @@ def add_ticket_note(ticket, author, role=None, message=None, visibility=None):
     }
     if isinstance(author, dict) and message is None:
         message = role
-    return add_note(
-        ticket=ticket,
-        user=user,
-        message=message,
-        visibility=visibility,
-    )
+    with patch("campusflow.notes.update_ticket", return_value="update success"):
+        return add_note(
+            ticket=ticket,
+            user=user,
+            message=message,
+            visibility=visibility,
+        )
 
 
 def make_ticket(status="open"):
@@ -316,9 +317,9 @@ class TestNote(unittest.TestCase):
             ],
         }
 
-        with patch("campusflow.notes.read_ticket_file", return_value=[ticket]):
+        with patch("campusflow.notes.get_ticket_by_id", return_value=ticket):
             with patch(
-                "campusflow.auth.get_current_user",
+                "campusflow.notes.require_current_user",
                 return_value={
                     "id": "U001",
                     "name": "Ada",
@@ -337,11 +338,11 @@ class TestNote(unittest.TestCase):
             ],
         }
 
-        with patch("campusflow.notes.read_ticket_file", return_value=[ticket]):
+        with patch("campusflow.notes.get_ticket_by_id", return_value=ticket):
             with patch("builtins.input", return_value="T001"):
                 with patch("campusflow.notes.pprint") as printed_notes:
                     with patch(
-                        "campusflow.auth.get_current_user",
+                        "campusflow.notes.require_current_user",
                         return_value={
                             "id": "U001",
                             "name": "Ada",

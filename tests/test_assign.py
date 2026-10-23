@@ -17,9 +17,11 @@ class TestAssignTicket(unittest.TestCase):
         update.assert_called_once_with(tickets[0])
 
     def test_blank_staff_name_is_rejected_before_file_access(self):
-        with patch("builtins.input", side_effect=["T001", "  "]):
-            with self.assertRaises(ValueError):
-                assign_ticket()
+        tickets = [{"id": "T001", "assigned_to": None}]
+        with patch("campusflow.assign.read_ticket_file", return_value=tickets):
+            with patch("builtins.input", side_effect=["T001", "  "]):
+                with self.assertRaises(ValueError):
+                    assign_ticket()
 
     def test_unknown_ticket_is_reported(self):
         with patch("campusflow.assign.read_ticket_file", return_value=[]):
