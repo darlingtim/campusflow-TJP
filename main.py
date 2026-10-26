@@ -3,7 +3,7 @@ from campusflow import (TicketValidationError, assign_ticket, change_status,
 						 generate_total_ticket_report, get_ticket, list_tickets,
 						 login_user, logout_user, raise_ticket, register_user,
 						 show_work_queue, understanding_check_menu,
-						 search_tickets_menu)
+						 search_tickets_menu, add_note, view_notes)
 
 
 def report_error(error):
@@ -20,7 +20,7 @@ def ticket_menu(user):
 		print("==========================================")
 		print(f"Signed in as {user['name']} ({user['role']})")
 		print("Please select an option from the menu below:")
-		print("\n1. Raise a ticket\n2. List all tickets\n3. View ticket by ID\n4. assign ticket\n5. view  ticket queue \n6. Update ticket status\n7. Generate ticket report\n8. Search tickets\n9. Engineering Understanding Check\n10. Log out")
+		print("\n1. Raise a ticket			2. List all tickets\n3. View ticket by ID			4. assign ticket\n5. view  ticket queue			6. Update ticket status\n7. Generate ticket report		8. Search tickets\n9. Engineering Understanding Check	10. Log out\n11. Add a note to a Ticket		12. View all notes in a ticket")
 		choice = input("\nChoose an option: ").strip()
 
 		try:
@@ -45,6 +45,10 @@ def ticket_menu(user):
 			elif choice == "10":
 				logout_user()
 				return
+			elif choice == "11":
+				add_note()
+			elif choice == "12":
+				view_notes()
 			else:
 				print("\nError:\n    Invalid option. please select a valid option from the menu.")
 		except (PermissionError, TicketValidationError, ValueError) as error:
