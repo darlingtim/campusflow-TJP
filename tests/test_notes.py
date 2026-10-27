@@ -463,7 +463,7 @@ class TestNote(unittest.TestCase):
                 "name": "Ada",
                 "role": "support_staff",
             }):
-                with patch("builtins.input", side_effect=["T001", "Update", "1"]):
+                with patch("builtins.input", side_effect=["T001", "1", "Update"]):
                     with patch(
                         "campusflow.notes.update_ticket",
                         return_value="update success",
