@@ -212,4 +212,4 @@ def save_note(ticket, validated):
             f"Unable to save notes for ticket {_ticket_value(ticket, 'id')}."
         )
 
-    return f"\nnote added and saved successfully:\n{note.to_dict()}"
+     return note.to_dict()
