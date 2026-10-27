@@ -181,7 +181,9 @@ def add_note(
     )
     if isinstance(validated, list):
         raise TicketValidationError(" ".join(validated))
-    return print(save_note(ticket, validated))
+    saved_note = save_note(ticket, validated)
+    print(f"\nnote added and saved successfully:\n{saved_note}")
+    return saved_note
 
 
 def save_note(ticket, validated):
