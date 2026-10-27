@@ -85,8 +85,7 @@ def validate_note(ticket, author, role=None, message=None, visibility=None):
                 errors.append(
                     "Only the ticket creator or assigned staff member can add a note."
                 )
-            elif assigned_to == None:
-                pass
+            
             else:
                 errors.append("Only the assigned staff member can add a note.")
 
