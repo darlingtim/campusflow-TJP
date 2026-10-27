@@ -164,13 +164,14 @@ def add_note(
         except PermissionError as error:
             raise TicketValidationError(str(error)) from error
 
+    role = user.get("role") if isinstance(user, dict) else getattr(user, "role", None)
+    
+    if visibility is None and role in {"support_staff", "support_lead"}:
+        visibility = _prompt_visibility()
+
     if message is None:
         message = input("Enter note: ")
 
-    role = user.get("role") if isinstance(user, dict) else getattr(user, "role", None)
-
-    if visibility is None and role in {"support_staff", "support_lead"}:
-        visibility = _prompt_visibility()
 
     validated = validate_note(
         ticket=ticket,
@@ -180,7 +181,9 @@ def add_note(
     )
     if isinstance(validated, list):
         raise TicketValidationError(" ".join(validated))
-    return save_note(ticket, validated)
+    saved_note = save_note(ticket, validated)
+    print(f"\nnote added and saved successfully:\n{saved_note}")
+    return saved_note
 
 
 def save_note(ticket, validated):
@@ -208,5 +211,5 @@ def save_note(ticket, validated):
         raise TicketValidationError(
             f"Unable to save notes for ticket {_ticket_value(ticket, 'id')}."
         )
-
+        
     return note.to_dict()
